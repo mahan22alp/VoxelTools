@@ -9,7 +9,9 @@ function send(res, status, body) {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "Content-Type",
     "Access-Control-Allow-Methods": "POST, OPTIONS, GET",
+    "Vary": "Origin",
   });
+  if (status === 204) return res.end();
   res.end(JSON.stringify(body));
 }
 
