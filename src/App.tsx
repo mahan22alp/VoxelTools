@@ -114,7 +114,8 @@ const minecraftCommands:MinecraftCommand[]=[
 function App(){
  const [tool,setTool]=useState("command"),[query,setQuery]=useState(""),[version,setVersion]=useState("1.21.11");
  const [commandQuery,setCommandQuery]=useState(""),[category,setCategory]=useState("All");
- const [dark,setDark]=useState(true),[mobile,setMobile]=useState(false),[saved,setSaved]=useState<string[]>([]);\n const [aiPrompt,setAiPrompt]=useState(""),[aiCommand,setAiCommand]=useState(""),[aiLoading,setAiLoading]=useState(false),[aiError,setAiError]=useState("");
+ const [dark,setDark]=useState(true),[mobile,setMobile]=useState(false),[saved,setSaved]=useState<string[]>([]);
+ const [aiPrompt,setAiPrompt]=useState(""),[aiCommand,setAiCommand]=useState(""),[aiLoading,setAiLoading]=useState(false),[aiError,setAiError]=useState("");
  const [form,setForm]=useState<Record<string,string>>({item:"diamond_sword",count:"1",player:"@p",mob:"zombie",level:"4",enchant:"sharpness",effect:"speed",duration:"30",amplifier:"1",x:"0",y:"64",z:"0",x1:"0",y1:"64",z1:"0",x2:"10",y2:"70",z2:"10",block:"stone",command:"/time set day"});
  useEffect(()=>{const s=localStorage.getItem("voxeltools-saved");if(s) setSaved(JSON.parse(s));},[]);
  const visible=useMemo(()=>tools.filter(t=>(t.name+" "+t.desc).toLowerCase().includes(query.toLowerCase())),[query]);
@@ -135,7 +136,18 @@ function App(){
  },[tool,form]);
  const copy=()=>navigator.clipboard?.writeText(command);
  const save=()=>{const n=[...new Set([command,...saved])].slice(0,20);setSaved(n);localStorage.setItem("voxeltools-saved",JSON.stringify(n));};
- const copyCatalog=(syntax:string)=>navigator.clipboard?.writeText(syntax);\n const generateAI=async()=>{\n  if(!aiPrompt.trim()||aiLoading)return;\n  setAiLoading(true);setAiError("");\n  try{\n   const r=await fetch("/api/generate-command",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt:aiPrompt,version})});\n   const data=await r.json();\n   if(!r.ok)throw new Error(data?.error||"AI request failed.");\n   setAiCommand(data.command||"");\n  }catch(e){setAiError(e instanceof Error?e.message:"Could not generate command.");}\n  finally{setAiLoading(false);}\n };
+ const copyCatalog=(syntax:string)=>navigator.clipboard?.writeText(syntax);
+ const generateAI=async()=>{
+  if(!aiPrompt.trim()||aiLoading)return;
+  setAiLoading(true);setAiError("");
+  try{
+   const r=await fetch("/api/generate-command",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt:aiPrompt,version})});
+   const data=await r.json();
+   if(!r.ok)throw new Error(data?.error||"AI request failed.");
+   setAiCommand(data.command||"");
+  }catch(e){setAiError(e instanceof Error?e.message:"Could not generate command.");}
+  finally{setAiLoading(false);}
+ };
  const field=(label:string,key:string,opts?:string[])=> <label className="field"><span>{label}</span>{opts?<select value={form[key]||opts[0]} onChange={e=>set(key,e.target.value)}>{opts.map(o=><option key={o}>{o}</option>)}</select>:<input value={form[key]||""} onChange={e=>set(key,e.target.value)} />}</label>;
  const editor=()=>{
   if(tool==="give")return <div className="grid">{field("Player","player")} {field("Item","item",items)} {field("Count","count")}</div>;
