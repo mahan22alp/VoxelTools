@@ -141,9 +141,9 @@ function App(){
   if(!aiPrompt.trim()||aiLoading)return;
   setAiLoading(true);setAiError("");
   try{
-   const r=await fetch("https://voxeltools-ai-api.onrender.com/api/generate-command",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt:aiPrompt,version})});
+   const r=await fetch("https://voxeltools-ai-api.onrender.com/api/generate-command",{method:"POST",headers:{"Content-Type":"text/plain;charset=UTF-8"},body:JSON.stringify({prompt:aiPrompt,version})});
    const data=await r.json();
-   if(!r.ok)throw new Error(data?.error||"AI request failed.");
+   if(!r.ok)throw new Error(data?.detail?`${data?.error||"AI request failed."}: ${data.detail}`:(data?.error||"AI request failed."));
    setAiCommand(data.command||"");
   }catch(e){setAiError(e instanceof Error?e.message:"Could not generate command.");}
   finally{setAiLoading(false);}
