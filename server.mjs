@@ -48,7 +48,7 @@ const server = http.createServer(async (req, res) => {
     ].join(" ");
 
     const response = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=" +
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=" +
         encodeURIComponent(apiKey),
       {
         method: "POST",
@@ -63,7 +63,7 @@ const server = http.createServer(async (req, res) => {
 
     if (!response.ok) {
       const detail = await response.text();
-      return send(res, 502, { error: "Gemini provider error.", detail });
+      return send(res, 502, { error: "Gemini provider error.", detail: detail.slice(0, 1200) });
     }
 
     const data = await response.json();
