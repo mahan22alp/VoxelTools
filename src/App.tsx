@@ -164,7 +164,7 @@ function App(){
     <div className="ai-panel">
      <div className="ai-intro">
       <div className="ai-icon">✦</div>
-      <div><strong>What do you want to create?</strong><span>Example: “Summon a zombie with full netherite armor and a Sharpness 10 sword.”</span></div>
+      <div><strong>What do you want to create?</strong><span>Example: “Summon a zombie with full netherite armor and a glowing effect.”</span></div>
      </div>
      <div className="ai-input-wrap">
       <textarea value={aiPrompt} onChange={e=>setAiPrompt(e.target.value)} onKeyDown={e=>{if((e.ctrlKey||e.metaKey)&&e.key==="Enter")generateAI()}} placeholder="Describe the command you want..."/>
