@@ -1,4 +1,4 @@
-import {useEffect,useMemo,useState} from "react";
+import {useMemo,useState} from "react";
 
 type Tool={id:string;name:string;icon:string;desc:string};
 type MinecraftCommand={name:string;syntax:string;category:string;desc:string;versions:string;syntaxByVersion?:Record<string,string>};
@@ -10,14 +10,13 @@ const tools:Tool[]=[
 {id:"enchant",name:"Enchant Generator",icon:"✧",desc:"Add enchantments to items"},
 {id:"effect",name:"Effect Generator",icon:"◈",desc:"Apply potion effects"},
 {id:"fill",name:"Fill Generator",icon:"▦",desc:"Generate fill commands"},
-{id:"teleport",name:"Teleport Generator",icon:"➤",desc:"Create /tp commands"},
+{id:"teleport",name:"Teleport Generator",icon:"➤",desc:"Create /tp commands"}
 ];
 
 const mobs=["zombie","skeleton","creeper","spider","enderman","warden","iron_golem"];
 const items=["diamond_sword","netherite_sword","diamond_pickaxe","netherite_pickaxe","diamond_helmet","netherite_chestplate","elytra","golden_apple"];
 const enchants=["sharpness","protection","efficiency","unbreaking","fortune","mending","fire_aspect","looting"];
 const effects=["speed","strength","haste","regeneration","resistance","fire_resistance","night_vision","jump_boost"];
-
 
 const itemAliases:Record<string,string>={
  sword:"diamond_sword","swords":"diamond_sword","diamond sword":"diamond_sword","diamond swords":"diamond_sword","diamond_sword":"diamond_sword",
@@ -33,7 +32,6 @@ function naturalCommand(input:string){
  const s=input.trim().toLowerCase().replace(/[?!.]/g,"").replace(/\s+/g," ");
  if(!s) return "/give @p minecraft:diamond_sword 1";
  if(s.startsWith("/")) return input.trim();
-
  if(/\b(set|change)\b.*\btime\b/.test(s)){
    if(s.includes("night")) return "/time set night";
    if(s.includes("noon")) return "/time set noon";
@@ -42,7 +40,6 @@ function naturalCommand(input:string){
  }
  const mode=s.match(/\b(creative|survival|adventure|spectator)\b/);
  if(mode) return `/gamemode ${mode[1]} @p`;
-
  if(/^(give|get)\b/.test(s)){
    const match=s.match(/^(?:give|get)(?:\s+me)?\s+(?:(\d+)\s+)?(.+?)(?:\s+(\d+))?$/);
    if(match){
@@ -53,35 +50,24 @@ function naturalCommand(input:string){
      return `/give @p ${item} ${count}`;
    }
  }
-
- // Offline support for every command in the Java command catalog.
  const commandNames=minecraftCommands.map(c=>c.name).sort((a,b)=>b.length-a.length);
  const direct=commandNames.find(name=>s===name||s.startsWith(name+" "));
- if(direct){
-   const rest=s.slice(direct.length).trim();
-   return rest?`/${direct} ${rest}`:`/${direct}`;
- }
+ if(direct){const rest=s.slice(direct.length).trim();return rest?`/${direct} ${rest}`:`/${direct}`;}
  const naturalAliases:Record<string,string>={
    "change weather":"weather","set weather":"weather","make it rain":"weather","clear weather":"weather",
    "set difficulty":"difficulty","set game mode":"gamemode","change game mode":"gamemode",
-   "teleport":"tp","tp":"tp","kill":"kill","summon":"summon","give":"give","enchant":"enchant",
+   teleport:"tp",tp:"tp",kill:"kill",summon:"summon",give:"give",enchant:"enchant",
    "set block":"setblock","set a block":"setblock","fill area":"fill","set world spawn":"setworldspawn",
    "set spawn":"spawnpoint","set time":"time","change time":"time","set gamerule":"gamerule",
    "find structure":"locate","find biome":"locate","play sound":"playsound","send message":"tellraw",
-   "clear inventory":"clear","experience":"experience","xp":"xp","particle":"particle"
+   "clear inventory":"clear",experience:"experience",xp:"xp",particle:"particle"
  };
  const alias=Object.keys(naturalAliases).sort((a,b)=>b.length-a.length).find(a=>s.startsWith(a));
- if(alias){
-   const name=naturalAliases[alias];
-   const rest=s.slice(alias.length).trim();
-   if(rest)return `/${name} ${rest}`;
- }
-
- return `// I couldn't understand that yet. Try a command name such as "weather rain", "summon zombie", "tp @p 0 64 0", or "give me diamonds"`;
- }
+ if(alias){const name=naturalAliases[alias];const rest=s.slice(alias.length).trim();if(rest)return `/${name} ${rest}`;}
+ return `// Try "weather rain", "summon zombie", "tp @p 0 64 0", or "give me diamonds"`;
+}
 
 const versionOrder=["1.7.10","1.8.9","1.9.4","1.10.2","1.11.2","1.12.2","1.13.2","1.14.4","1.15.2","1.16.5","1.17.1","1.18.2","1.19.4","1.20.1","1.20.2","1.20.4","1.20.5","1.20.6","1.21","1.21.1","1.21.2","1.21.3","1.21.4","1.21.5","1.21.6","1.21.7","1.21.8","1.21.9","1.21.10","1.21.11","26.1","26.1.1","26.2","26.3"];
-
 function versionKey(v:string){return v==="All versions"?"1.21.11":v}
 function versionAtLeast(v:string,target:string){
  const a=versionKey(v).split(".").map(Number),b=target.split(".").map(Number);
@@ -89,8 +75,7 @@ function versionAtLeast(v:string,target:string){
  return true;
 }
 function syntaxFor(c:MinecraftCommand,v:string){
- const table=c.syntaxByVersion;
- if(!table)return c.syntax;
+ const table=c.syntaxByVersion;if(!table)return c.syntax;
  const keys=Object.keys(table).filter(k=>versionAtLeast(v,k)).sort((a,b)=>versionOrder.indexOf(a)-versionOrder.indexOf(b));
  return keys.length?table[keys[keys.length-1]]:c.syntax;
 }
@@ -120,7 +105,7 @@ const minecraftCommands:MinecraftCommand[]=[
 {name:"forceload",syntax:"/forceload <add|remove|query> <from> [to]",category:"World",desc:"Control forced-loaded chunks.",versions:"Java"},
 {name:"function",syntax:"/function <name> [arguments]",category:"Data",desc:"Run a function from a data pack.",versions:"Java"},
 {name:"gamemode",syntax:"/gamemode <survival|creative|adventure|spectator> [target]",category:"Players",desc:"Change a player's game mode.",versions:"Java"},
-{name:"gamerule",syntax:"/gamerule <rule> [value]",category:"World",desc:"Read or change a game rule.",versions:"Java",syntaxByVersion:{"1.21.11":"/gamerule <rule> [value] (namespaced snake_case rules)"}} ,
+{name:"gamerule",syntax:"/gamerule <rule> [value]",category:"World",desc:"Read or change a game rule.",versions:"Java",syntaxByVersion:{"1.21.11":"/gamerule <rule> [value] · namespaced snake_case rule names"}},
 {name:"give",syntax:"/give <targets> <item> [count]",category:"Players",desc:"Give items to players.",versions:"Java",syntaxByVersion:{"1.20.5":"/give <targets> <item>[components] [count]"}},
 {name:"help",syntax:"/help [command]",category:"Server",desc:"Show command help.",versions:"Java"},
 {name:"item",syntax:"/item <target> <slot> <replace|modify> ...",category:"Players",desc:"Replace or modify items in entity or block slots.",versions:"Java",syntaxByVersion:{"1.20.5":"/item <target> <slot> <replace|modify> ..."}},
@@ -136,18 +121,14 @@ const minecraftCommands:MinecraftCommand[]=[
 {name:"pardon",syntax:"/pardon <player>",category:"Server",desc:"Remove a player from the ban list.",versions:"Java"},
 {name:"pardon-ip",syntax:"/pardon-ip <ip>",category:"Server",desc:"Remove an IP from the ban list.",versions:"Java"},
 {name:"particle",syntax:"/particle <name> [pos] [delta] [speed] [count] [force|normal] [viewers]",category:"Visual",desc:"Create particle effects.",versions:"Java"},
-{name:"perf",syntax:"/perf start|stop",category:"Server",desc:"Collect server performance information when supported.",versions:"Java"},
 {name:"place",syntax:"/place <feature|jigsaw|structure|template|configured>",category:"World",desc:"Place configured world-generation elements.",versions:"Java"},
 {name:"playsound",syntax:"/playsound <sound> <source> <targets> [pos] [volume] [pitch] [minVolume]",category:"Audio",desc:"Play a sound for selected players.",versions:"Java"},
 {name:"publish",syntax:"/publish [port]",category:"Server",desc:"Open a single-player world to LAN.",versions:"Java"},
 {name:"random",syntax:"/random <roll|sequence> ...",category:"Logic",desc:"Generate random values or sequences.",versions:"Java"},
 {name:"recipe",syntax:"/recipe <give|take> <targets> <recipe|*>",category:"Players",desc:"Give or take crafting recipes.",versions:"Java"},
 {name:"reload",syntax:"/reload",category:"Data",desc:"Reload data packs and server data.",versions:"Java"},
-{name:"return",syntax:"/return <fail|run|success|result> ...",category:"Logic",desc:"Control return values inside command functions.",versions:"Java"},
 {name:"ride",syntax:"/ride <target> <mount|dismount|...>",category:"Entities",desc:"Control entity riding relationships.",versions:"Java"},
 {name:"save-all",syntax:"/save-all [flush]",category:"Server",desc:"Save world data to disk.",versions:"Java"},
-{name:"save-off",syntax:"/save-off",category:"Server",desc:"Disable automatic world saving.",versions:"Java"},
-{name:"save-on",syntax:"/save-on",category:"Server",desc:"Enable automatic world saving.",versions:"Java"},
 {name:"say",syntax:"/say <message>",category:"Chat",desc:"Broadcast a message to all players.",versions:"Java"},
 {name:"schedule",syntax:"/schedule <function|clear> <function> <time|append>",category:"Data",desc:"Schedule a function to run later.",versions:"Java"},
 {name:"scoreboard",syntax:"/scoreboard <objectives|players|display|teams|...>",category:"Logic",desc:"Create and manage scoreboards and scores.",versions:"Java"},
@@ -170,7 +151,6 @@ const minecraftCommands:MinecraftCommand[]=[
 {name:"tick",syntax:"/tick <query|rate|step|sprint|freeze|unfreeze>",category:"World",desc:"Control and inspect game tick behavior.",versions:"Java"},
 {name:"time",syntax:"/time <set|add|query> <value>",category:"World",desc:"Set, add or query world time.",versions:"Java"},
 {name:"title",syntax:"/title <targets> <clear|reset|title|subtitle|actionbar|times>",category:"Visual",desc:"Display titles and action bars.",versions:"Java"},
-{name:"tm",syntax:"/tm <message>",category:"Chat",desc:"Team message alias.",versions:"Java"},
 {name:"trigger",syntax:"/trigger <objective> <add|set> <value>",category:"Logic",desc:"Trigger a scoreboard objective for a player.",versions:"Java"},
 {name:"transfer",syntax:"/transfer <host> [port]",category:"Server",desc:"Transfer a player to another server.",versions:"Java"},
 {name:"version",syntax:"/version",category:"Server",desc:"Show server version information where supported.",versions:"Java"},
@@ -188,15 +168,15 @@ const minecraftCommands:MinecraftCommand[]=[
 {name:"xp",syntax:"/xp <add|set|query> <targets> <amount> [points|levels]",category:"Players",desc:"Experience command alias.",versions:"Java"}
 ];
 
+const versionOptions=["All versions","1.21.11","1.21.10","1.21.9","1.21.8","1.21.7","1.21.6","1.21.5","1.21.4","1.21.3","1.21.2","1.21.1","1.21","1.20.6","1.20.5","1.20.4","1.20.2","1.20.1","1.20","1.19.4","1.19.3","1.19.2","1.19.1","1.19","1.18.2","1.18.1","1.18","1.17.1","1.17","1.16.5","1.16.4","1.16.3","1.16.2","1.16.1","1.15.2","1.14.4","1.13.2","1.12.2","1.11.2","1.10.2","1.9.4","1.8.9","1.7.10"];
+
 function App(){
  const [tool,setTool]=useState("command"),[page,setPage]=useState<"home"|"generator">(()=>{try{return localStorage.getItem("voxeltools-page")==="generator"?"generator":"home"}catch{return "home"}}),[query,setQuery]=useState(""),[version,setVersion]=useState("1.21.11");
  const [commandQuery,setCommandQuery]=useState(""),[category,setCategory]=useState("All");
- const [dark,setDark]=useState(true),[mobile,setMobile]=useState(false),[saved,setSaved]=useState<string[]>([]);
+ const [dark,setDark]=useState(false),[mobile,setMobile]=useState(false),[saved,setSaved]=useState<string[]>([]);
  const [form,setForm]=useState<Record<string,string>>({player:"@p",item:"diamond_sword",count:"1",mob:"zombie",enchant:"sharpness",level:"4",effect:"speed",duration:"30",amplifier:"1",x:"~",y:"~",z:"~",x1:"~",y1:"~",z1:"~",x2:"~",y2:"~",z2:"~",block:"stone"});
- const [naturalInput,setNaturalInput]=useState("give me sword");
- const [generated,setGenerated]=useState("/give @p minecraft:diamond_sword 1");
- const visible=useMemo(()=>tools.filter(t=>(t.name+" "+t.desc).toLowerCase().includes(query.toLowerCase())),[query]);
- const categories=useMemo(()=>["All",...Array.from(new Set(minecraftCommands.map(c=>c.category)))],[ ]);
+ const [naturalInput,setNaturalInput]=useState("give me sword"),[generated,setGenerated]=useState("/give @p minecraft:diamond_sword 1");
+ const categories=useMemo(()=>["All",...Array.from(new Set(minecraftCommands.map(c=>c.category)))],[]);
  const allCommands=useMemo(()=>minecraftCommands.filter(c=>(category==="All"||c.category===category)&&(c.name+" "+syntaxFor(c,version)+" "+c.desc).toLowerCase().includes(commandQuery.toLowerCase())),[category,commandQuery,version]);
  const set=(k:string,v:string)=>setForm(f=>({...f,[k]:v}));
  const command=useMemo(()=>{
@@ -206,15 +186,13 @@ function App(){
    case"summon":return `/summon ${f.mob||"zombie"} ${f.x||"~"} ${f.y||"~"} ${f.z||"~"}`;
    case"enchant":return `/enchant ${p} ${f.enchant||"sharpness"} ${f.level||"4"}`;
    case"effect":return `/effect give ${p} ${f.effect||"speed"} ${f.duration||"30"} ${f.amplifier||"1"}`;
-   case"fill":return `/fill ${f.x1} ${f.y1} ${f.z1} ${f.x2} ${f.y2} ${f.z2} ${f.block||"stone"}`;
+   case"fill":return `/fill ${f.x1||"~"} ${f.y1||"~"} ${f.z1||"~"} ${f.x2||"~"} ${f.y2||"~"} ${f.z2||"~"} ${f.block||"stone"}`;
    case"teleport":return `/tp ${p} ${f.x||"0"} ${f.y||"64"} ${f.z||"0"}`;
    default:return generated;
   }
  },[tool,form,generated]);
  const copy=()=>navigator.clipboard?.writeText(command);
- const generateNatural=()=>setGenerated(naturalCommand(naturalInput));
  const save=()=>{const n=[...new Set([command,...saved])].slice(0,20);setSaved(n);localStorage.setItem("voxeltools-saved",JSON.stringify(n));};
- const copyCatalog=(syntax:string)=>navigator.clipboard?.writeText(syntax);
  const field=(label:string,key:string,opts?:string[])=> <label className="field"><span>{label}</span>{opts?<select value={form[key]||opts[0]} onChange={e=>set(key,e.target.value)}>{opts.map(o=><option key={o}>{o}</option>)}</select>:<input value={form[key]||""} onChange={e=>set(key,e.target.value)} />}</label>;
  const editor=()=>{
   if(tool==="give")return <div className="grid">{field("Player","player")} {field("Item","item",items)} {field("Count","count")}</div>;
@@ -223,24 +201,35 @@ function App(){
   if(tool==="effect")return <div className="grid">{field("Player","player")} {field("Effect","effect",effects)} {field("Duration","duration")} {field("Amplifier","amplifier")}</div>;
   if(tool==="fill")return <div className="grid">{field("From X","x1")} {field("From Y","y1")} {field("From Z","z1")} {field("To X","x2")} {field("To Y","y2")} {field("To Z","z2")} {field("Block","block")}</div>;
   if(tool==="teleport")return <div className="grid">{field("Player","player")} {field("X","x")} {field("Y","y")} {field("Z","z")}</div>;
-  return <div className="natural-editor"><label className="field wide"><span>Describe what you want</span><input value={naturalInput} onChange={e=>{setNaturalInput(e.target.value);setGenerated(naturalCommand(e.target.value))}} placeholder="give me sword"/></label><p className="hint">Offline mode supports the full Java command catalog. Examples: "weather rain" • "summon zombie" • "tp @p 0 64 0" • "give me 10 diamonds"</p></div>;
+  return <div className="natural-editor"><label className="field wide"><span>Describe what you want</span><input aria-label="Describe a command" value={naturalInput} onChange={e=>{setNaturalInput(e.target.value);setGenerated(naturalCommand(e.target.value))}} placeholder="e.g. set time to night"/></label><p className="hint">Live generation · offline · version selector stays global</p></div>;
  };
- return <div className={dark?"app":"app light"}>
-  <aside className={mobile?"sidebar open":"sidebar"}><div className="brand"><div className="logo">V</div><div><b>Voxel<span>Tools</span></b><small>MINECRAFT UTILITIES</small></div><button className="close" onClick={()=>setMobile(false)}>×</button></div>
-   <div className="side-title">NAVIGATION</div><button className={page==="home"?"nav active":"nav"} onClick={()=>{setPage("home");localStorage.setItem("voxeltools-page","home");setMobile(false)}}><i>⌂</i>Homepage</button><button className={page==="generator"?"nav active":"nav"} onClick={()=>{setPage("generator");localStorage.setItem("voxeltools-page","generator");setMobile(false)}}><i>⌘</i>Command Generator</button>
-   <div className="side-foot">VOID + CYAN<br/><span>v1.2.0</span></div>
-  </aside>
-  <main><header><button className="hamb" onClick={()=>setMobile(true)}>☰</button><div className="search">⌕<input placeholder="Search commands..." value={query} onChange={e=>setQuery(e.target.value)}/></div><div className="head-actions"><select value={version} onChange={e=>setVersion(e.target.value)}><option>All versions</option><option>1.21.11</option><option>1.21.10</option><option>1.21.9</option><option>1.21.8</option><option>1.21.7</option><option>1.21.6</option><option>1.21.5</option><option>1.21.4</option><option>1.21.3</option><option>1.21.2</option><option>1.21.1</option><option>1.21</option><option>1.20.6</option><option>1.20.5</option><option>1.20.4</option><option>1.20.2</option><option>1.20.1</option><option>1.20</option><option>1.19.4</option><option>1.19.3</option><option>1.19.2</option><option>1.19.1</option><option>1.19</option><option>1.18.2</option><option>1.18.1</option><option>1.18</option><option>1.17.1</option><option>1.17</option><option>1.16.5</option><option>1.16.4</option><option>1.16.3</option><option>1.16.2</option><option>1.16.1</option><option>1.15.2</option><option>1.14.4</option><option>1.13.2</option><option>1.12.2</option><option>1.11.2</option><option>1.10.2</option><option>1.9.4</option><option>1.8.9</option><option>1.7.10</option></select><button onClick={()=>setDark(!dark)}>{dark?"☀":"☾"}</button></div></header>
-   <section className="hero"><div><p className="eyebrow">MINECRAFT COMMAND LAB</p><h1>Build commands.<br/><span>Play smarter.</span></h1><p className="sub">Describe a command in normal English and VoxelTools turns it into Minecraft Java syntax.</p></div><div className="hero-orb"><div>VT</div></div></section>
-      {page==="home" ? <section key="home" className="page-view home-page">      <section className="command-index">
-    <div className="section-head"><div><h2>All Java Commands</h2><p>{minecraftCommands.length} commands • all versions • searchable syntax reference</p></div><span className="badge">JAVA • ALL VERSIONS</span></div>
-    <div className="command-controls"><input placeholder="Search commands, syntax or description..." value={commandQuery} onChange={e=>setCommandQuery(e.target.value)}/><select value={category} onChange={e=>setCategory(e.target.value)}>{categories.map(c=><option key={c}>{c}</option>)}</select></div>
-    <div className="command-list">{allCommands.map(c=><article className="command-row" key={c.name} onMouseMove={e=>{const r=e.currentTarget.getBoundingClientRect();e.currentTarget.style.setProperty("--mx",`${e.clientX-r.left}px`);e.currentTarget.style.setProperty("--my",`${e.clientY-r.top}px`);}} onMouseLeave={e=>{e.currentTarget.style.setProperty("--mx","50%");e.currentTarget.style.setProperty("--my","50%");}}><div className="command-main"><div className="command-name">/{c.name}<span>{c.category}</span></div><code>{syntaxFor(c,version)}</code><p>{c.desc}</p></div><div className="command-meta"><small>{version==="All versions"?"ALL VERSIONS":version}</small><button onClick={()=>copyCatalog(syntaxFor(c,version))}>COPY SYNTAX</button></div></article>)}{!allCommands.length&&<div className="empty">No commands match your search.</div>}</div>
-   </section></section> : <section key="generator" className="page-view generator-page">   <section className="workspace"><div className="section-head"><div><h2>Command Generator</h2><p>Type what you want in normal English and get a ready-to-use command.</p></div><span className="badge">SMART RULES</span></div><div className="workspace-grid"><div className="panel editor">{editor()}</div><div className="panel console"><div className="console-head"><span><em></em> GENERATED COMMAND</span><small>{version}</small></div><pre>{command}</pre><div className="console-actions"><button className="primary" onClick={copy}>COPY COMMAND</button><button onClick={save}>＋ SAVE</button></div></div></div></section>
-</section>}
+ const switchPage=(next:"home"|"generator")=>{setPage(next);localStorage.setItem("voxeltools-page",next);window.scrollTo({top:0,behavior:"smooth"});setMobile(false)};
+ return <div className={dark?"app dark":"app"}>
+  <header className="site-header"><div className="header-inner">
+   <button className="mobile-menu" onClick={()=>setMobile(true)} aria-label="Open menu">☰</button>
+   <button className="brand" onClick={()=>switchPage("home")}><span className="brand-mark">V</span><span>Voxel<span>Tools</span></span></button>
+   <nav className={mobile?"main-nav open":"main-nav"}><button className={page==="home"?"nav active":"nav"} onClick={()=>switchPage("home")}>Home</button><button className={page==="generator"?"nav active":"nav"} onClick={()=>switchPage("generator")}>Command Generator</button><a className="nav" href="#commands" onClick={()=>{setPage("home");localStorage.setItem("voxeltools-page","home")}}>Commands</a><button className="nav close-nav" onClick={()=>setMobile(false)}>Close</button></nav>
+   <div className="header-actions"><span className="version-label">Minecraft Java</span><select value={version} onChange={e=>setVersion(e.target.value)}>{versionOptions.map(v=><option key={v}>{v}</option>)}</select><button className="theme-toggle" onClick={()=>setDark(!dark)} aria-label="Toggle theme">{dark?"☀":"◐"}</button></div>
+  </div></header>
 
-   <footer>VOXELTOOLS <span>•</span> Built for Minecraft Java creators</footer>
+  <main>
+   <section className="hero section-wrap">
+    <div className="hero-copy"><div className="eyebrow"><span></span>MINECRAFT COMMAND TOOLS</div><h1>All Minecraft<br/><strong>commands.</strong></h1><p>Build, search and generate Java commands in one focused workspace.</p><div className="hero-actions"><button className="primary-action" onClick={()=>switchPage("generator")}>Open Generator <span>↗</span></button><button className="secondary-action" onClick={()=>document.getElementById("commands")?.scrollIntoView({behavior:"smooth"})}>Browse Commands</button></div><div className="hero-note"><span>01</span><div><b>Offline & fast</b><small>No account. No backend. Just useful tools.</small></div></div></div>
+    <div className="hero-art" aria-hidden="true"><div className="art-grid"></div><div className="art-card"><span>JAVA</span><b>{version==="All versions"?"ALL":version}</b><small>VERSION READY</small></div><div className="art-orbit orbit-a"></div><div className="art-orbit orbit-b"></div><div className="art-block block-a"></div><div className="art-block block-b"></div></div>
+   </section>
+
+   {page==="home" ? <section className="page-view home-page">
+    <section className="feature-strip section-wrap"><div><small>01</small><b>Offline & Fast</b><span>Runs locally in your browser.</span></div><div><small>02</small><b>Complete Commands</b><span>Searchable Java command reference.</span></div><div><small>03</small><b>Version Support</b><span>Syntax changes follow the selector.</span></div><div><small>04</small><b>Simple & Clean</b><span>Swiss-inspired, distraction-free UI.</span></div></section>
+    <section id="commands" className="command-index section-wrap"><div className="section-kicker">COMMAND LIBRARY</div><div className="section-title-row"><div><h2>Every command.<br/><em>One clean reference.</em></h2><p>Search syntax, filter categories and copy exactly what you need.</p></div><span className="count-badge">{allCommands.length} MATCHES</span></div>
+     <div className="command-controls"><label className="search-field"><span>⌕</span><input placeholder="Search commands, syntax or description..." value={commandQuery} onChange={e=>setCommandQuery(e.target.value)}/></label><select value={category} onChange={e=>setCategory(e.target.value)}>{categories.map(c=><option key={c}>{c}</option>)}</select></div>
+     <div className="command-list">{allCommands.map(c=><article className="command-row" key={c.name}><div className="command-number">/{c.name}</div><div className="command-content"><code>{syntaxFor(c,version)}</code><p>{c.desc}</p></div><div className="command-meta"><span>{version==="All versions"?"ALL":version}</span><button onClick={()=>navigator.clipboard?.writeText(syntaxFor(c,version))}>Copy</button></div></article>)}{!allCommands.length&&<div className="empty">No commands match your search.</div>}</div>
+    </section>
+    <section className="tools-section section-wrap"><div className="section-kicker">EXPLORE MORE</div><div className="tools-heading"><h2>Powerful tools<br/><em>for every player.</em></h2><div className="tools-grid">{tools.map(t=><button className="tool-tile" key={t.id} onClick={()=>{setTool(t.id);switchPage("generator")}}><span>{t.icon}</span><div><b>{t.name}</b><small>{t.desc}</small></div><i>↗</i></button>)}</div></div></section>
+   </section> :
+   <section key="generator" className="page-view generator-page section-wrap"><div className="generator-shell"><div className="section-kicker">COMMAND GENERATOR</div><div className="generator-title"><div><h2>Generate any<br/><em>Minecraft command.</em></h2><p>Describe what you want in normal English and get a command instantly.</p></div><span className="version-chip">{version}</span></div><div className="generator-layout"><div className="generator-left"><div className="natural-input"><span>✦</span><input aria-label="Command request" value={naturalInput} onChange={e=>{setNaturalInput(e.target.value);setGenerated(naturalCommand(e.target.value))}} placeholder="e.g. give me 10 diamonds, set time to night..."/></div><div className="example-row"><button onClick={()=>{setNaturalInput("set time to night");setGenerated(naturalCommand("set time to night"))}}>set time to night</button><button onClick={()=>{setNaturalInput("weather rain");setGenerated(naturalCommand("weather rain"))}}>weather rain</button><button onClick={()=>{setNaturalInput("tp @p 0 64 0");setGenerated(naturalCommand("tp @p 0 64 0"))}}>tp @p 0 64 0</button></div><div className="generator-tools"><div className="tool-picker">{tools.slice(1).map(t=><button className={tool===t.id?"tool-chip active":"tool-chip"} key={t.id} onClick={()=>setTool(t.id)}>{t.icon}<span>{t.name.replace(" Generator","")}</span></button>)}</div><div className="form-card">{editor()}</div></div></div><div className="output-card"><div className="output-top"><span><i></i>GENERATED COMMAND</span><small>{version}</small></div><pre>{command}</pre><div className="output-actions"><button className="copy-btn" onClick={copy}>Copy command</button><button onClick={save}>＋ Save</button></div><div className="output-note">Live preview updates as you type.</div></div></div></div></section>}
   </main>
+  <footer className="site-footer"><div><b>Voxel<span>Tools</span></b><span> • Minecraft Java command utilities</span></div><div>Build better commands.</div></footer>
  </div>
 }
+
 export default App;
