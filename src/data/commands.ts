@@ -20,7 +20,7 @@ export const minecraftCommands:MinecraftCommand[]=[
 {name:"enchant",syntax:"/enchant <targets> <enchantment> [level]",category:"Players",desc:"Enchant an item held by a target.",versions:"Java"},
 {name:"execute",syntax:"/execute <as|at|positioned|if|unless|run|store|...>",category:"Logic",desc:"Run commands with conditions, contexts and transformations.",versions:"Java",syntaxByVersion:{"1.21.11":"/execute <as|at|positioned|if|unless|run|store|on|summon|...> · adds stopwatch conditions"}},
 {name:"experience",syntax:"/experience <add|set|query> <targets> <amount> [points|levels]",category:"Players",desc:"Add, set or query experience.",versions:"Java"},
-{name:"fill",syntax:"/fill <from> <to> <block> [destroy|hollow|keep|outline|replace]",category:"World",desc:"Fill a region with blocks.",versions:"Java"},
+{name:"fill",introduced:"1.8",syntax:"/fill <from> <to> <block> [destroy|hollow|keep|outline|replace]",category:"World",desc:"Fill a region with blocks.",versions:"Java"},
 {name:"fillbiome",introduced:"1.19.3",syntax:"/fillbiome <from> <to> <biome>",category:"World",desc:"Change the biome data in a region.",versions:"Java"},
 {name:"forceload",syntax:"/forceload <add|remove|query> <from> [to]",category:"World",desc:"Control forced-loaded chunks.",versions:"Java"},
 {name:"function",syntax:"/function <name> [arguments]",category:"Data",desc:"Run a function from a data pack.",versions:"Java"},
