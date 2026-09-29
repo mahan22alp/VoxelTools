@@ -42,7 +42,7 @@ function naturalCommand(input:string){
  if(/(set|change).*(time|day|night)/.test(s)) return `/time set ${s.includes("night")?"night":"day"}`;
  if(s.includes("creative")) return "/gamemode creative @p";
  if(s.includes("survival")) return "/gamemode survival @p";
- return "// I couldn't understand that yet. Try "give me sword" or "give me 10 diamonds"";
+  return `// I couldn't understand that yet. Try "give me sword" or "give me 10 diamonds"`;
 }
 
 const minecraftCommands:MinecraftCommand[]=[
@@ -141,9 +141,9 @@ const minecraftCommands:MinecraftCommand[]=[
 function App(){
  const [tool,setTool]=useState("command"),[page,setPage]=useState<"home"|"generator">("home"),[query,setQuery]=useState(""),[version,setVersion]=useState("1.21.11");
  const [commandQuery,setCommandQuery]=useState(""),[category,setCategory]=useState("All");
- const [dark,setDark]=useState(true),[mobile,setMobile]=useState(false),[saved,setSaved]=useState<string[]>([]);\n const [naturalInput,setNaturalInput]=useState("give me sword");\n const [generated,setGenerated]=useState("/give @p minecraft:diamond_sword 1");
- const [form,setForm]=useState<Record<string,string>>({item:"diamond_sword",count:"1",player:"@p",mob:"zombie",level:"4",enchant:"sharpness",effect:"speed",duration:"30",amplifier:"1",x:"0",y:"64",z:"0",x1:"0",y1:"64",z1:"0",x2:"10",y2:"70",z2:"10",block:"stone",command:"/time set day"});
- useEffect(()=>{const s=localStorage.getItem("voxeltools-saved");if(s) setSaved(JSON.parse(s));},[]);
+ const [dark,setDark]=useState(true),[mobile,setMobile]=useState(false),[saved,setSaved]=useState<string[]>([]);
+ const [naturalInput,setNaturalInput]=useState("give me sword");
+ const [generated,setGenerated]=useState("/give @p minecraft:diamond_sword 1");
  const visible=useMemo(()=>tools.filter(t=>(t.name+" "+t.desc).toLowerCase().includes(query.toLowerCase())),[query]);
  const categories=useMemo(()=>["All",...Array.from(new Set(minecraftCommands.map(c=>c.category)))],[ ]);
  const allCommands=useMemo(()=>minecraftCommands.filter(c=>(category==="All"||c.category===category)&&(c.name+" "+c.syntax+" "+c.desc).toLowerCase().includes(commandQuery.toLowerCase())),[category,commandQuery]);
@@ -160,7 +160,8 @@ function App(){
    default:return generated;
   }
  },[tool,form,generated]);
- const copy=()=>navigator.clipboard?.writeText(command);\n const generateNatural=()=>setGenerated(naturalCommand(naturalInput));
+ const copy=()=>navigator.clipboard?.writeText(command);
+ const generateNatural=()=>setGenerated(naturalCommand(naturalInput));
  const save=()=>{const n=[...new Set([command,...saved])].slice(0,20);setSaved(n);localStorage.setItem("voxeltools-saved",JSON.stringify(n));};
  const copyCatalog=(syntax:string)=>navigator.clipboard?.writeText(syntax);
  const field=(label:string,key:string,opts?:string[])=> <label className="field"><span>{label}</span>{opts?<select value={form[key]||opts[0]} onChange={e=>set(key,e.target.value)}>{opts.map(o=><option key={o}>{o}</option>)}</select>:<input value={form[key]||""} onChange={e=>set(key,e.target.value)} />}</label>;
