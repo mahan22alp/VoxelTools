@@ -3,12 +3,14 @@ import {existsSync,readFileSync} from "node:fs";
 
 const app=readFileSync("src/App.tsx","utf8");
 const css=readFileSync("src/styles.css","utf8");
+const search=readFileSync("src/components/GlobalSearch.tsx","utf8");
+const saved=readFileSync("src/components/SavedCommands.tsx","utf8");
 const commands=readFileSync("src/data/commands.ts","utf8");
 const index=readFileSync("dist/index.html","utf8");
 
 const checks=[
-  [app,'aria-label="Global command search"',"global search"],
-  [app,'className="saved-panel"',"saved command panel"],
+  [search,'aria-label="Global command search"',"global search"],
+  [saved,'className="saved-panel"',"saved command panel"],
   [app,'naturalCommand(naturalInput,version)',"version-aware live generator"],
   [app,'localStorage.getItem("voxeltools-saved")',"saved command persistence"],
   [app,'localStorage.getItem("voxeltools-version")',"version persistence"],
