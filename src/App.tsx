@@ -54,8 +54,31 @@ function naturalCommand(input:string){
    }
  }
 
- return `// I couldn't understand that yet. Try "give me sword", "give me 10 diamonds", or "set time to night"`;
-}
+ // Offline support for every command in the Java command catalog.
+ const commandNames=minecraftCommands.map(c=>c.name).sort((a,b)=>b.length-a.length);
+ const direct=commandNames.find(name=>s===name||s.startsWith(name+" "));
+ if(direct){
+   const rest=s.slice(direct.length).trim();
+   return rest?`/${direct} ${rest}`:`/${direct}`;
+ }
+ const naturalAliases:Record<string,string>={
+   "change weather":"weather","set weather":"weather","make it rain":"weather","clear weather":"weather",
+   "set difficulty":"difficulty","set game mode":"gamemode","change game mode":"gamemode",
+   "teleport":"tp","tp":"tp","kill":"kill","summon":"summon","give":"give","enchant":"enchant",
+   "set block":"setblock","set a block":"setblock","fill area":"fill","set world spawn":"setworldspawn",
+   "set spawn":"spawnpoint","set time":"time","change time":"time","set gamerule":"gamerule",
+   "find structure":"locate","find biome":"locate","play sound":"playsound","send message":"tellraw",
+   "clear inventory":"clear","experience":"experience","xp":"xp","particle":"particle"
+ };
+ const alias=Object.keys(naturalAliases).sort((a,b)=>b.length-a.length).find(a=>s.startsWith(a));
+ if(alias){
+   const name=naturalAliases[alias];
+   const rest=s.slice(alias.length).trim();
+   if(rest)return `/${name} ${rest}`;
+ }
+
+ return `// I couldn't understand that yet. Try a command name such as "weather rain", "summon zombie", "tp @p 0 64 0", or "give me diamonds"`;
+ }
 
 const minecraftCommands:MinecraftCommand[]=[
 {name:"advancement",syntax:"/advancement <grant|revoke> <targets> <everything|from|through|until|only>",category:"Players",desc:"Grant or revoke advancements.",versions:"Java"},
@@ -185,7 +208,7 @@ function App(){
   if(tool==="effect")return <div className="grid">{field("Player","player")} {field("Effect","effect",effects)} {field("Duration","duration")} {field("Amplifier","amplifier")}</div>;
   if(tool==="fill")return <div className="grid">{field("From X","x1")} {field("From Y","y1")} {field("From Z","z1")} {field("To X","x2")} {field("To Y","y2")} {field("To Z","z2")} {field("Block","block")}</div>;
   if(tool==="teleport")return <div className="grid">{field("Player","player")} {field("X","x")} {field("Y","y")} {field("Z","z")}</div>;
-  return <div className="natural-editor"><label className="field wide"><span>Describe what you want</span><input value={naturalInput} onChange={e=>{setNaturalInput(e.target.value);setGenerated(naturalCommand(e.target.value))}} placeholder="give me sword"/></label><p className="hint">Examples: "give me sword" • "give me 10 diamonds" • "set time to night"</p></div>;
+  return <div className="natural-editor"><label className="field wide"><span>Describe what you want</span><input value={naturalInput} onChange={e=>{setNaturalInput(e.target.value);setGenerated(naturalCommand(e.target.value))}} placeholder="give me sword"/></label><p className="hint">Offline mode supports the full Java command catalog. Examples: "weather rain" • "summon zombie" • "tp @p 0 64 0" • "give me 10 diamonds"</p></div>;
  };
  return <div className={dark?"app":"app light"}>
   <aside className={mobile?"sidebar open":"sidebar"}><div className="brand"><div className="logo">V</div><div><b>Voxel<span>Tools</span></b><small>MINECRAFT UTILITIES</small></div><button className="close" onClick={()=>setMobile(false)}>×</button></div>
