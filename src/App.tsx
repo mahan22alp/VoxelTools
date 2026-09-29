@@ -10,6 +10,8 @@ import SavedCommands from "./components/SavedCommands";
 import VersionSelector from "./components/VersionSelector";
 
 type Page="home"|"generator";
+
+type Theme="light"|"dark";
 type Tool={id:string;name:string;icon:string;desc:string};
 
 const tools:Tool[]=[
@@ -28,7 +30,11 @@ const enchants=["sharpness","protection","efficiency","unbreaking","fortune","me
 const effects=["speed","strength","haste","regeneration","resistance","fire_resistance","night_vision","jump_boost"];
 
 function safeRead(key:string,fallback:string){try{return localStorage.getItem(key)||fallback}catch{return fallback}}
-function Icon({name}:{name:"search"|"arrow"|"copy"|"check"|"spark"|"grid"|"clock"|"bookmark"}) {
+function getInitialTheme():Theme{
+ const stored=safeRead("voxeltools-theme","light");
+ return stored==="dark"||stored==="light"?stored:"light";
+}
+function Icon({name}:{name:"search"|"arrow"|"copy"|"check"|"spark"|"grid"|"clock"|"bookmark"|"sun"|"moon"}) {
  const paths:Record<string,string>={
   search:"M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14Zm5.2 12.2L21 21",
   arrow:"M5 12h13M13 6l6 6-6 6",
@@ -37,7 +43,9 @@ function Icon({name}:{name:"search"|"arrow"|"copy"|"check"|"spark"|"grid"|"clock
   spark:"m12 2 1.7 6.3L20 10l-6.3 1.7L12 18l-1.7-6.3L4 10l6.3-1.7L12 2Z",
   grid:"M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z",
   clock:"M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z",
-  bookmark:"M6 4h12v17l-6-3-6 3V4Z"
+  bookmark:"M6 4h12v17l-6-3-6 3V4Z",
+  sun:"M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z",
+  moon:"M20 15.2A8.5 8.5 0 0 1 8.8 4a8.5 8.5 0 1 0 11.2 11.2Z"
  };
  return <svg viewBox="0 0 24 24" aria-hidden="true" className="icon"><path d={paths[name]} fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/></svg>;
 }
@@ -45,6 +53,7 @@ function Icon({name}:{name:"search"|"arrow"|"copy"|"check"|"spark"|"grid"|"clock
 function App(){
  const searchRef=useRef<HTMLInputElement|null>(null);
  const [page,setPage]=useState<Page>(()=>safeRead("voxeltools-page","home")==="generator"?"generator":"home");
+ const [theme,setTheme]=useState<Theme>(getInitialTheme);
  const [tool,setTool]=useState("command");
  const [query,setQuery]=useState("");
  const [version,setVersion]=useState(()=>{const stored=safeRead("voxeltools-version","1.21.11");return versionOptions.includes(stored)?stored:"1.21.11"});
@@ -65,6 +74,10 @@ function App(){
  const [generated,setGenerated]=useState("/time set night");
 
  useEffect(()=>{localStorage.setItem("voxeltools-page",page)},[page]);
+ useEffect(()=>{
+   document.documentElement.dataset.theme=theme;
+   localStorage.setItem("voxeltools-theme",theme);
+ },[theme]);
  useEffect(()=>{localStorage.setItem("voxeltools-version",version)},[version]);
  useEffect(()=>{const timer=window.setTimeout(()=>setGenerated(naturalCommand(naturalInput,version)),110);setGenerating(true);return()=>window.clearTimeout(timer)},[naturalInput,version]);
  useEffect(()=>{const timer=window.setTimeout(()=>setGenerating(false),125);return()=>window.clearTimeout(timer)},[generated]);
@@ -114,7 +127,7 @@ function App(){
    return <div className="natural-editor"><span className="input-caption">DESCRIBE THE RESULT</span><div className="natural-line"><span><Icon name="spark"/></span><input aria-label="Command request" value={naturalInput} onChange={e=>setNaturalInput(e.target.value)} placeholder="Try: set time to night"/><kbd>LIVE</kbd></div><p className="hint"><span><Icon name="check"/></span> Generated locally for {version}</p></div>;
  };
 
- return <div className="app">
+ return <div className={`app theme-${theme}`} data-theme={theme}>
    <div className="ambient ambient-one"></div><div className="ambient ambient-two"></div>
    <header className="site-header">
      <div className="scroll-progress"><span style={{width:`${Math.min(100,Math.max(0,scrollProgress))}%`}}/></div>
@@ -127,7 +140,7 @@ function App(){
          <button className={page==="generator"?"nav active":"nav"} onClick={()=>switchPage("generator")}>Generator</button>
          <button className="nav" onClick={openCommands}>Commands</button>
        </nav>
-       <div className="header-actions"><VersionSelector value={version} options={versionOptions} onChange={setVersion}/></div>
+       <div className="header-actions"><VersionSelector value={version} options={versionOptions} onChange={setVersion}/><button className="theme-toggle" onClick={()=>setTheme(theme==="light"?"dark":"light")} aria-label={`Switch to ${theme==="light"?"dark":"light"} mode`} title={`Switch to ${theme==="light"?"dark":"light"} mode`}><Icon name={theme==="light"?"moon":"sun"}/><span>{theme==="light"?"Dark":"Light"}</span></button></div>
      </div>
    </header>
 
