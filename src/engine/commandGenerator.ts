@@ -1,3 +1,5 @@
+import {minecraftCommands} from "../data/commands";
+
 const itemAliases:Record<string,string>={
  sword:"diamond_sword","swords":"diamond_sword","diamond sword":"diamond_sword","diamond swords":"diamond_sword","diamond_sword":"diamond_sword",
  "netherite sword":"netherite_sword","netherite swords":"netherite_sword","netherite_sword":"netherite_sword",
@@ -8,7 +10,7 @@ const itemAliases:Record<string,string>={
  gold:"gold_ingot","gold ingot":"gold_ingot","gold ingots":"gold_ingot","netherite":"netherite_ingot","netherite ingot":"netherite_ingot","netherite ingots":"netherite_ingot"
 };
 
-export function naturalCommand(input:string){){
+export function naturalCommand(input:string){
  const s=input.trim().toLowerCase().replace(/[?!.]/g,"").replace(/\s+/g," ");
  if(!s) return "/give @p minecraft:diamond_sword 1";
  if(s.startsWith("/")) return input.trim();
