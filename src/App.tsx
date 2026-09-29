@@ -1,7 +1,7 @@
 import {useEffect,useMemo,useState} from "react";
 
 type Tool={id:string;name:string;icon:string;desc:string};
-type MinecraftCommand={name:string;syntax:string;category:string;desc:string;versions:string};
+type MinecraftCommand={name:string;syntax:string;category:string;desc:string;versions:string;syntaxByVersion?:Record<string,string>};
 
 const tools:Tool[]=[
 {id:"command",name:"Command Generator",icon:"⌘",desc:"Build common Minecraft commands"},
@@ -80,6 +80,21 @@ function naturalCommand(input:string){
  return `// I couldn't understand that yet. Try a command name such as "weather rain", "summon zombie", "tp @p 0 64 0", or "give me diamonds"`;
  }
 
+const versionOrder=["1.7.10","1.8.9","1.9.4","1.10.2","1.11.2","1.12.2","1.13.2","1.14.4","1.15.2","1.16.5","1.17.1","1.18.2","1.19.4","1.20.1","1.20.2","1.20.4","1.20.5","1.20.6","1.21","1.21.1","1.21.2","1.21.3","1.21.4","1.21.5","1.21.6","1.21.7","1.21.8","1.21.9","1.21.10","1.21.11","26.1","26.1.1","26.2","26.3"];
+
+function versionKey(v:string){return v==="All versions"?"1.21.11":v}
+function versionAtLeast(v:string,target:string){
+ const a=versionKey(v).split(".").map(Number),b=target.split(".").map(Number);
+ for(let i=0;i<Math.max(a.length,b.length);i++){const x=a[i]||0,y=b[i]||0;if(x!==y)return x>y}
+ return true;
+}
+function syntaxFor(c:MinecraftCommand,v:string){
+ const table=c.syntaxByVersion;
+ if(!table)return c.syntax;
+ const keys=Object.keys(table).filter(k=>versionAtLeast(v,k)).sort((a,b)=>versionOrder.indexOf(a)-versionOrder.indexOf(b));
+ return keys.length?table[keys[keys.length-1]]:c.syntax;
+}
+
 const minecraftCommands:MinecraftCommand[]=[
 {name:"advancement",syntax:"/advancement <grant|revoke> <targets> <everything|from|through|until|only>",category:"Players",desc:"Grant or revoke advancements.",versions:"Java"},
 {name:"attribute",syntax:"/attribute <target> <attribute> <get|base|modifier>",category:"Entities",desc:"Read or modify an entity attribute.",versions:"Java"},
@@ -105,10 +120,10 @@ const minecraftCommands:MinecraftCommand[]=[
 {name:"forceload",syntax:"/forceload <add|remove|query> <from> [to]",category:"World",desc:"Control forced-loaded chunks.",versions:"Java"},
 {name:"function",syntax:"/function <name> [arguments]",category:"Data",desc:"Run a function from a data pack.",versions:"Java"},
 {name:"gamemode",syntax:"/gamemode <survival|creative|adventure|spectator> [target]",category:"Players",desc:"Change a player's game mode.",versions:"Java"},
-{name:"gamerule",syntax:"/gamerule <rule> [value]",category:"World",desc:"Read or change a game rule.",versions:"Java 1.21.11+"},
-{name:"give",syntax:"/give <targets> <item>[components] [count]",category:"Players",desc:"Give items to players.",versions:"Java"},
+{name:"gamerule",syntax:"/gamerule <rule> [value]",category:"World",desc:"Read or change a game rule.",versions:"Java",syntaxByVersion:{"1.21.11":"/gamerule <rule> [value] (namespaced snake_case rules)"}} ,
+{name:"give",syntax:"/give <targets> <item> [count]",category:"Players",desc:"Give items to players.",versions:"Java",syntaxByVersion:{"1.20.5":"/give <targets> <item>[components] [count]"}},
 {name:"help",syntax:"/help [command]",category:"Server",desc:"Show command help.",versions:"Java"},
-{name:"item",syntax:"/item <target> <slot> <replace|modify> ...",category:"Players",desc:"Replace or modify items in entity or block slots.",versions:"Java"},
+{name:"item",syntax:"/item <target> <slot> <replace|modify> ...",category:"Players",desc:"Replace or modify items in entity or block slots.",versions:"Java",syntaxByVersion:{"1.20.5":"/item <target> <slot> <replace|modify> ..."}},
 {name:"jfr",syntax:"/jfr <start|stop>",category:"Server",desc:"Start or stop Java Flight Recorder profiling.",versions:"Java"},
 {name:"kick",syntax:"/kick <players> [reason]",category:"Server",desc:"Remove players from a server.",versions:"Java"},
 {name:"kill",syntax:"/kill [targets]",category:"Entities",desc:"Remove targeted entities.",versions:"Java"},
@@ -182,7 +197,7 @@ function App(){
  const [generated,setGenerated]=useState("/give @p minecraft:diamond_sword 1");
  const visible=useMemo(()=>tools.filter(t=>(t.name+" "+t.desc).toLowerCase().includes(query.toLowerCase())),[query]);
  const categories=useMemo(()=>["All",...Array.from(new Set(minecraftCommands.map(c=>c.category)))],[ ]);
- const allCommands=useMemo(()=>minecraftCommands.filter(c=>(category==="All"||c.category===category)&&(c.name+" "+c.syntax+" "+c.desc).toLowerCase().includes(commandQuery.toLowerCase())),[category,commandQuery]);
+ const allCommands=useMemo(()=>minecraftCommands.filter(c=>(category==="All"||c.category===category)&&(c.name+" "+syntaxFor(c,version)+" "+c.desc).toLowerCase().includes(commandQuery.toLowerCase())),[category,commandQuery,version]);
  const set=(k:string,v:string)=>setForm(f=>({...f,[k]:v}));
  const command=useMemo(()=>{
   const f=form,p=f.player||"@p";
@@ -220,7 +235,7 @@ function App(){
       {page==="home" ? <section key="home" className="page-view home-page">      <section className="command-index">
     <div className="section-head"><div><h2>All Java Commands</h2><p>{minecraftCommands.length} commands • all versions • searchable syntax reference</p></div><span className="badge">JAVA • ALL VERSIONS</span></div>
     <div className="command-controls"><input placeholder="Search commands, syntax or description..." value={commandQuery} onChange={e=>setCommandQuery(e.target.value)}/><select value={category} onChange={e=>setCategory(e.target.value)}>{categories.map(c=><option key={c}>{c}</option>)}</select></div>
-    <div className="command-list">{allCommands.map(c=><article className="command-row" key={c.name} onMouseMove={e=>{const r=e.currentTarget.getBoundingClientRect();e.currentTarget.style.setProperty("--mx",`${e.clientX-r.left}px`);e.currentTarget.style.setProperty("--my",`${e.clientY-r.top}px`);}} onMouseLeave={e=>{e.currentTarget.style.setProperty("--mx","50%");e.currentTarget.style.setProperty("--my","50%");}}><div className="command-main"><div className="command-name">/{c.name}<span>{c.category}</span></div><code>{c.syntax}</code><p>{c.desc}</p></div><div className="command-meta"><small>{c.versions}</small><button onClick={()=>copyCatalog(c.syntax)}>COPY SYNTAX</button></div></article>)}{!allCommands.length&&<div className="empty">No commands match your search.</div>}</div>
+    <div className="command-list">{allCommands.map(c=><article className="command-row" key={c.name} onMouseMove={e=>{const r=e.currentTarget.getBoundingClientRect();e.currentTarget.style.setProperty("--mx",`${e.clientX-r.left}px`);e.currentTarget.style.setProperty("--my",`${e.clientY-r.top}px`);}} onMouseLeave={e=>{e.currentTarget.style.setProperty("--mx","50%");e.currentTarget.style.setProperty("--my","50%");}}><div className="command-main"><div className="command-name">/{c.name}<span>{c.category}</span></div><code>{syntaxFor(c,version)}</code><p>{c.desc}</p></div><div className="command-meta"><small>{version==="All versions"?"ALL VERSIONS":version}</small><button onClick={()=>copyCatalog(syntaxFor(c,version))}>COPY SYNTAX</button></div></article>)}{!allCommands.length&&<div className="empty">No commands match your search.</div>}</div>
    </section></section> : <section key="generator" className="page-view generator-page">   <section className="workspace"><div className="section-head"><div><h2>Command Generator</h2><p>Type what you want in normal English and get a ready-to-use command.</p></div><span className="badge">SMART RULES</span></div><div className="workspace-grid"><div className="panel editor">{editor()}</div><div className="panel console"><div className="console-head"><span><em></em> GENERATED COMMAND</span><small>{version}</small></div><pre>{command}</pre><div className="console-actions"><button className="primary" onClick={copy}>COPY COMMAND</button><button onClick={save}>＋ SAVE</button></div></div></div></section>
 </section>}
 
