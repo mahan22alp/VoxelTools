@@ -1,7 +1,7 @@
 import {useEffect,useMemo,useState} from "react";
 import {minecraftCommands} from "./data/commands";
 import {versionOptions} from "./data/versions";
-import {syntaxFor} from "./engine/versionResolver";
+import {isCommandAvailable,syntaxFor} from "./engine/versionResolver";
 import {naturalCommand} from "./engine/commandGenerator";
 
 type Tool={id:string;name:string;icon:string;desc:string};
@@ -29,7 +29,7 @@ function App(){
  useEffect(()=>{const onScroll=()=>{const max=document.documentElement.scrollHeight-window.innerHeight;setScrollProgress(max>0?Math.min(100,Math.max(0,window.scrollY/max*100)):0)};onScroll();window.addEventListener("scroll",onScroll,{passive:true});return()=>window.removeEventListener("scroll",onScroll)},[]);
  useEffect(()=>{const observer=new IntersectionObserver(entries=>entries.forEach(entry=>{if(entry.isIntersecting)entry.target.classList.add("in-view")}),{threshold:.12,rootMargin:"0px 0px -35px 0px"});document.querySelectorAll(".reveal").forEach(el=>observer.observe(el));return()=>observer.disconnect()},[]);
  const categories=useMemo(()=>["All",...Array.from(new Set(minecraftCommands.map(c=>c.category)))],[]);
- const allCommands=useMemo(()=>minecraftCommands.filter(c=>(category==="All"||c.category===category)&&(c.name+" "+syntaxFor(c,version)+" "+c.desc).toLowerCase().includes(commandQuery.toLowerCase())),[category,commandQuery,version]);
+ const allCommands=useMemo(()=>minecraftCommands.filter(c=>(category==="All"||c.category===category)&&isCommandAvailable(c,version)&&(c.name+" "+syntaxFor(c,version)+" "+c.desc).toLowerCase().includes(commandQuery.toLowerCase())),[category,commandQuery,version]);
  const set=(k:string,v:string)=>setForm(f=>({...f,[k]:v}));
  const command=useMemo(()=>{
   const f=form,p=f.player||"@p";
