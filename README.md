@@ -33,3 +33,14 @@ npm run preview
 ```
 
 The GitHub Actions workflow builds and deploys the Vite frontend to GitHub Pages.
+
+## Quality checks
+
+```bash
+npm test
+npm run typecheck
+npm run build
+npm run smoke
+```
+
+The CI workflow runs tests, typechecking, the production build and a deterministic smoke test before deploying to GitHub Pages.
