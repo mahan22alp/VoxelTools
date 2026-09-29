@@ -163,3 +163,26 @@ html[data-theme="dark"]{color-scheme:dark;background:#0d0f14}
 .natural-input input:focus{outline:none!important;box-shadow:none!important;border-color:transparent!important}
 .natural-line input{outline:none!important;box-shadow:none!important;border-color:transparent!important}
 .natural-line input:focus{outline:none!important;box-shadow:none!important;border-color:transparent!important}
+
+
+/* Dark mode glass preview */
+.theme-dark .hero-visual{
+ background:linear-gradient(150deg,rgba(24,27,35,.96),rgba(15,18,24,.94));
+ border-color:#2c303a;
+}
+.theme-dark .hero-surface{
+ background:radial-gradient(circle at 71% 30%,rgba(67,61,141,.42),transparent 29%),linear-gradient(155deg,rgba(31,34,44,.72),rgba(16,19,26,.84));
+}
+.theme-dark .hero-halo{background:#40388a;opacity:.28}
+.theme-dark .glass-command,
+.theme-dark .glass-status{
+ background:rgba(21,24,32,.78);
+ border-color:rgba(53,58,70,.88);
+ box-shadow:0 22px 48px rgba(0,0,0,.28),inset 0 1px rgba(255,255,255,.035);
+ color:var(--ink);
+}
+.theme-dark .glass-command b{color:#f0efff}
+.theme-dark .glass-command small{background:#242139;color:#a9a4c9}
+.theme-dark .glass-status small{color:#8d94a3}
+.theme-dark .hero-orbit{border-color:rgba(145,135,242,.24)}
+.theme-dark .hero-grid{background-image:linear-gradient(rgba(145,135,242,.065) 1px,transparent 1px),linear-gradient(90deg,rgba(145,135,242,.065) 1px,transparent 1px)}
