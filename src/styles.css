@@ -168,8 +168,9 @@ body{overflow-x:hidden}
 .copy-btn.copied{background:linear-gradient(135deg,#4d9b73,#6bb88f);box-shadow:0 12px 28px rgba(56,142,92,.18)}
 .save-btn{box-shadow:0 8px 18px rgba(60,38,130,.05)}
 .page-view{animation:pageEnter .55s cubic-bezier(.18,.85,.2,1) both}
-.reveal{opacity:0;transform:translateY(28px);transition:opacity .7s ease,transform .7s cubic-bezier(.2,.8,.2,1)}
+.reveal{opacity:1;transform:none;transition:opacity .7s ease,transform .7s cubic-bezier(.2,.8,.2,1)}
 .reveal.in-view{opacity:1;transform:none}
+.command-index.reveal,.feature-strip.reveal,.tools-section.reveal{opacity:1;transform:none}
 @keyframes heroCopyIn{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
 @keyframes sectionLift{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
 @keyframes pageEnter{from{opacity:0;transform:translateY(26px) scale(.995)}to{opacity:1;transform:none}}
