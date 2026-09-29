@@ -12,8 +12,8 @@ const checks=[
   [search,'aria-label="Global command search"',"global search"],
   [saved,'className="saved-panel"',"saved command panel"],
   [app,'naturalCommand(naturalInput,version)',"version-aware live generator"],
-  [app,'localStorage.getItem("voxeltools-saved")',"saved command persistence"],
-  [app,'localStorage.getItem("voxeltools-version")',"version persistence"],
+  [app,'localStorage.setItem("voxeltools-saved"',"saved command persistence"],
+  [app,'localStorage.setItem("voxeltools-version"',"version persistence"],
   [css,".saved-panel","saved panel styles"],
   [commands,'introduced:"26.3"',"26.3 command metadata"],
   [index,"VoxelTools","production HTML"]
