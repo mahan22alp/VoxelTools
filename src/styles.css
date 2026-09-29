@@ -49,7 +49,7 @@ button{border:0}
 .art-grid{position:absolute;inset:0;background-image:linear-gradient(#6d3df510 1px,transparent 1px),linear-gradient(90deg,#6d3df510 1px,transparent 1px);background-size:34px 34px;mask-image:linear-gradient(to bottom,#000,transparent 80%)}
 .art-card{position:absolute;left:34px;top:36px;background:rgba(255,255,255,.82);border:1px solid #dfd5f4;border-radius:16px;padding:16px 18px;backdrop-filter:blur(10px);box-shadow:0 18px 40px #3c1b7b14}
 .dark .art-card{background:#2a2336cc;border-color:#42384f}
-.art-card span{display:block;font-size:8px;letter-spacing:1.6px;color:var(--purple);font-weight:800}.art-card b{display:block;font:700 26px "Space Grotesk";margin:3px 0}.art-card small{color:var(--muted);font-size:8px}
+.art-card span{display:block;font-size:8px;letter-spacing:1.6px;color:var(--purple);font-weight:800}.art-card b{display:block;font:700 26px "Helvetica Neue",Helvetica,Arial,sans-serif;margin:3px 0}.art-card small{color:var(--muted);font-size:8px}
 .art-orbit{position:absolute;border:1px solid #8d64ff66;border-radius:50%;transform:rotate(-24deg)}
 .orbit-a{width:270px;height:120px;right:-20px;top:70px}.orbit-b{width:320px;height:145px;right:-8px;top:160px}
 .art-block{position:absolute;border-radius:20px;background:linear-gradient(145deg,#8d64ff,#5d31db);box-shadow:0 25px 55px #6d3df54d;transform:rotate(-14deg)}
