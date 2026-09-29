@@ -141,7 +141,7 @@ const minecraftCommands:MinecraftCommand[]=[
 function App(){
  const [tool,setTool]=useState("command"),[page,setPage]=useState<"home"|"generator">("home"),[query,setQuery]=useState(""),[version,setVersion]=useState("1.21.11");
  const [commandQuery,setCommandQuery]=useState(""),[category,setCategory]=useState("All");
- const [dark,setDark]=useState(true),[mobile,setMobile]=useState(false),[saved,setSaved]=useState<string[]>([]);
+ const [dark,setDark]=useState(true),[mobile,setMobile]=useState(false),[saved,setSaved]=useState<string[]>([]);\n const [form,setForm]=useState<Record<string,string>>({player:"@p",item:"diamond_sword",count:"1",mob:"zombie",enchant:"sharpness",level:"4",effect:"speed",duration:"30",amplifier:"1",x:"~",y:"~",z:"~",x1:"~",y1:"~",z1:"~",x2:"~",y2:"~",z2:"~",block:"stone"});
  const [naturalInput,setNaturalInput]=useState("give me sword");
  const [generated,setGenerated]=useState("/give @p minecraft:diamond_sword 1");
  const visible=useMemo(()=>tools.filter(t=>(t.name+" "+t.desc).toLowerCase().includes(query.toLowerCase())),[query]);
