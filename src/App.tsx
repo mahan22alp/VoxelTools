@@ -141,7 +141,7 @@ function App(){
   if(!aiPrompt.trim()||aiLoading)return;
   setAiLoading(true);setAiError("");
   try{
-   const r=await fetch("https://voxeltools-ai-api.onrender.com/api/generate-command",{method:"POST",headers:{"Content-Type":"text/plain;charset=UTF-8"},body:JSON.stringify({prompt:aiPrompt,version})});
+   const r=await fetch("https://voxeltools-ai-api.onrender.com/api/generate-command",{method:"POST",body:JSON.stringify({prompt:aiPrompt,version})});
    const data=await r.json();
    if(!r.ok)throw new Error(data?.detail?`${data?.error||"AI request failed."}: ${data.detail}`:(data?.error||"AI request failed."));
    setAiCommand(data.command||"");
