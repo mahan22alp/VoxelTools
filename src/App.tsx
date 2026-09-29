@@ -120,7 +120,7 @@ function App(){
        <button className="mobile-menu" onClick={()=>setMobile(true)} aria-label="Open navigation">☰</button>
        <button className="brand" onClick={()=>switchPage("home")} aria-label="VoxelTools home"><span className="brand-mark">V</span><span className="brand-word">Voxel<span>Tools</span></span></button>
        <GlobalSearch value={query} onChange={value=>{setQuery(value);setCommandQuery(value)}} onEnter={openCommands} />
-       <input ref={searchRef} className="sr-search-ref" aria-hidden="true" tabIndex={-1} />
+       
        <nav className={mobile?"main-nav open":"main-nav"} aria-label="Primary navigation">
          <button className={page==="home"?"nav active":"nav"} onClick={()=>switchPage("home")}>Home</button>
          <button className={page==="generator"?"nav active":"nav"} onClick={()=>switchPage("generator")}>Generator</button>
