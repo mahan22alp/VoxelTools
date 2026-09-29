@@ -1,4 +1,5 @@
 import {useEffect,useMemo,useRef,useState} from "react";
+import type {CSSProperties} from "react";
 import {minecraftCommands} from "./data/commands";
 import {versionOptions} from "./data/versions";
 import {isCommandAvailable,syntaxFor} from "./engine/versionResolver";
@@ -140,7 +141,7 @@ function App(){
         <div className="hero-actions"><button className="primary-action" onClick={()=>switchPage("generator")}>Open generator <Icon name="arrow"/></button><button className="secondary-action" onClick={openCommands}>Browse library</button></div>
         <div className="hero-proof"><span><Icon name="check"/></span><div><b>Fast & local</b><small>No account. No backend dependency.</small></div><i></i><div><b>Version-aware</b><small>{version==="All versions"?"All releases":version} in context.</small></div></div>
       </div>
-      <div className="hero-visual reveal in-view" style={{"--mx":`${mouse.x}%`,"--my":`${mouse.y}%`} as React.CSSProperties}>
+      <div className="hero-visual reveal in-view" style={{"--mx":`${mouse.x}%`,"--my":`${mouse.y}%`} as CSSProperties}>
         <div className="hero-surface"></div><div className="hero-halo"></div><div className="hero-orbit orbit-one"></div><div className="hero-orbit orbit-two"></div><div className="hero-core"></div><div className="hero-core-shine"></div>
         <div className="glass-command"><span>LIVE PREVIEW</span><b>{generated}</b><small>{version==="All versions"?"Multiple releases":version}</small></div>
         <div className="glass-status"><span></span><div><b>Ready to use</b><small>Generated locally</small></div></div>
