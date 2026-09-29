@@ -32,7 +32,7 @@ export const minecraftCommands:MinecraftCommand[]=[
 {name:"swing",syntax:"/swing [<target>] [<hand>]",category:"Entities",desc:"Play an entity arm swing animation.",versions:"Java",introduced:"26.1"},
 {name:"unpublish",syntax:"/unpublish",category:"Server",desc:"Unpublish the integrated server.",versions:"Java",introduced:"26.2"},
 {name:"compute",syntax:"/compute <target> integer <int_provider> OR /compute <target> float <float_provider> [<scale>]",category:"Logic",desc:"Evaluate context integer or float providers.",versions:"Java",introduced:"26.3"},
-{name:"posteffect",syntax:"/posteffect <add|remove|list|clear> ...",category:"Visual",desc:"Manage player post effects.",versions:"Java",introduced:"26.3"},
+{name:"posteffect",syntax:"/posteffect <add|clear|list|remove> ...",category:"Visual",desc:"Manage player post effects.",versions:"Java",introduced:"26.3"},
 {name:"jfr",syntax:"/jfr <start|stop>",category:"Server",desc:"Start or stop Java Flight Recorder profiling.",versions:"Java"},
 {name:"kick",syntax:"/kick <players> [reason]",category:"Server",desc:"Remove players from a server.",versions:"Java"},
 {name:"kill",syntax:"/kill [targets]",category:"Entities",desc:"Remove targeted entities.",versions:"Java"},
