@@ -112,10 +112,9 @@ const minecraftCommands:MinecraftCommand[]=[
 ];
 
 function App(){
- const [tool,setTool]=useState("command"),[query,setQuery]=useState(""),[version,setVersion]=useState("1.21.11");
+ const [tool,setTool]=useState("command"),[page,setPage]=useState<"home"|"generator">("home"),[query,setQuery]=useState(""),[version,setVersion]=useState("1.21.11");
  const [commandQuery,setCommandQuery]=useState(""),[category,setCategory]=useState("All");
  const [dark,setDark]=useState(true),[mobile,setMobile]=useState(false),[saved,setSaved]=useState<string[]>([]);
- const [aiPrompt,setAiPrompt]=useState(""),[aiCommand,setAiCommand]=useState(""),[aiLoading,setAiLoading]=useState(false),[aiError,setAiError]=useState("");
  const [form,setForm]=useState<Record<string,string>>({item:"diamond_sword",count:"1",player:"@p",mob:"zombie",level:"4",enchant:"sharpness",effect:"speed",duration:"30",amplifier:"1",x:"0",y:"64",z:"0",x1:"0",y1:"64",z1:"0",x2:"10",y2:"70",z2:"10",block:"stone",command:"/time set day"});
  useEffect(()=>{const s=localStorage.getItem("voxeltools-saved");if(s) setSaved(JSON.parse(s));},[]);
  const visible=useMemo(()=>tools.filter(t=>(t.name+" "+t.desc).toLowerCase().includes(query.toLowerCase())),[query]);
@@ -137,17 +136,6 @@ function App(){
  const copy=()=>navigator.clipboard?.writeText(command);
  const save=()=>{const n=[...new Set([command,...saved])].slice(0,20);setSaved(n);localStorage.setItem("voxeltools-saved",JSON.stringify(n));};
  const copyCatalog=(syntax:string)=>navigator.clipboard?.writeText(syntax);
- const generateAI=async()=>{
-  if(!aiPrompt.trim()||aiLoading)return;
-  setAiLoading(true);setAiError("");
-  try{
-   const r=await fetch("https://voxeltools-ai-api.onrender.com/api/generate-command",{method:"POST",body:JSON.stringify({prompt:aiPrompt,version})});
-   const data=await r.json();
-   if(!r.ok)throw new Error(data?.detail?`${data?.error||"AI request failed."}: ${data.detail}`:(data?.error||"AI request failed."));
-   setAiCommand(data.command||"");
-  }catch(e){setAiError(e instanceof Error?e.message:"Could not generate command.");}
-  finally{setAiLoading(false);}
- };
  const field=(label:string,key:string,opts?:string[])=> <label className="field"><span>{label}</span>{opts?<select value={form[key]||opts[0]} onChange={e=>set(key,e.target.value)}>{opts.map(o=><option key={o}>{o}</option>)}</select>:<input value={form[key]||""} onChange={e=>set(key,e.target.value)} />}</label>;
  const editor=()=>{
   if(tool==="give")return <div className="grid">{field("Player","player")} {field("Item","item",items)} {field("Count","count")}</div>;
@@ -160,38 +148,18 @@ function App(){
  };
  return <div className={dark?"app":"app light"}>
   <aside className={mobile?"sidebar open":"sidebar"}><div className="brand"><div className="logo">V</div><div><b>Voxel<span>Tools</span></b><small>MINECRAFT UTILITIES</small></div><button className="close" onClick={()=>setMobile(false)}>×</button></div>
-   <div className="side-title">NAVIGATION</div><button className="nav active" onClick={()=>{setTool("command");setMobile(false);window.scrollTo({top:0,behavior:"smooth"})}}><i>⌂</i>Homepage</button><button className="nav" onClick={()=>{document.getElementById("ai-agent")?.scrollIntoView({behavior:"smooth"});setMobile(false)}}><i>✦</i>AI Command Agent</button><button className="nav" onClick={()=>{document.getElementById("workspace")?.scrollIntoView({behavior:"smooth"});setMobile(false)}}><i>⌘</i>Command Generator</button>
+   <div className="side-title">NAVIGATION</div><button className={page==="home"?"nav active":"nav"} onClick={()=>{setPage("home");setMobile(false)}}><i>⌂</i>Homepage</button><button className={page==="generator"?"nav active":"nav"} onClick={()=>{setPage("generator");setMobile(false)}}><i>⌘</i>Command Generator</button>
    <div className="side-foot">VOID + CYAN<br/><span>v1.1.0</span></div>
   </aside>
   <main><header><button className="hamb" onClick={()=>setMobile(true)}>☰</button><div className="search">⌕<input placeholder="Search commands..." value={query} onChange={e=>setQuery(e.target.value)}/></div><div className="head-actions"><select value={version} onChange={e=>setVersion(e.target.value)}><option>All versions</option><option>1.21.11</option><option>1.21.10</option><option>1.21.9</option><option>1.21.8</option><option>1.21.7</option><option>1.21.6</option><option>1.21.5</option><option>1.21.4</option><option>1.21.3</option><option>1.21.2</option><option>1.21.1</option><option>1.21</option><option>1.20.6</option><option>1.20.5</option><option>1.20.4</option><option>1.20.2</option><option>1.20.1</option><option>1.20</option><option>1.19.4</option><option>1.19.3</option><option>1.19.2</option><option>1.19.1</option><option>1.19</option><option>1.18.2</option><option>1.18.1</option><option>1.18</option><option>1.17.1</option><option>1.17</option><option>1.16.5</option><option>1.16.4</option><option>1.16.3</option><option>1.16.2</option><option>1.16.1</option><option>1.15.2</option><option>1.14.4</option><option>1.13.2</option><option>1.12.2</option><option>1.11.2</option><option>1.10.2</option><option>1.9.4</option><option>1.8.9</option><option>1.7.10</option></select><button onClick={()=>setDark(!dark)}>{dark?"☀":"☾"}</button></div></header>
-   <section className="hero"><div><p className="eyebrow">MINECRAFT COMMAND LAB</p><h1>Build commands.<br/><span>Play smarter.</span></h1><p className="sub">A complete Java Edition command reference on the home page, with version-aware tools and searchable syntax.</p></div><div className="hero-orb"><div>VT</div></div></section>
-      <section className="command-index">
+   <section className="hero"><div><p className="eyebrow">MINECRAFT COMMAND LAB</p><h1>Build commands.<br/><span>Play smarter.</span></h1><p className="sub">A complete Java Edition command reference with searchable syntax and a dedicated command generator.</p></div><div className="hero-orb"><div>VT</div></div></section>
+      {page==="home" ? <section className="home-page">      <section className="command-index">
     <div className="section-head"><div><h2>All Java Commands</h2><p>{minecraftCommands.length} commands • all versions • searchable syntax reference</p></div><span className="badge">JAVA • ALL VERSIONS</span></div>
     <div className="command-controls"><input placeholder="Search commands, syntax or description..." value={commandQuery} onChange={e=>setCommandQuery(e.target.value)}/><select value={category} onChange={e=>setCategory(e.target.value)}>{categories.map(c=><option key={c}>{c}</option>)}</select></div>
     <div className="command-list">{allCommands.map(c=><article className="command-row" key={c.name} onMouseMove={e=>{const r=e.currentTarget.getBoundingClientRect();e.currentTarget.style.setProperty("--mx",`${e.clientX-r.left}px`);e.currentTarget.style.setProperty("--my",`${e.clientY-r.top}px`);}} onMouseLeave={e=>{e.currentTarget.style.setProperty("--mx","50%");e.currentTarget.style.setProperty("--my","50%");}}><div className="command-main"><div className="command-name">/{c.name}<span>{c.category}</span></div><code>{c.syntax}</code><p>{c.desc}</p></div><div className="command-meta"><small>{c.versions}</small><button onClick={()=>copyCatalog(c.syntax)}>COPY SYNTAX</button></div></article>)}{!allCommands.length&&<div className="empty">No commands match your search.</div>}</div>
-   </section>
+   </section</section> : <section className="generator-page">   <section className="workspace"><div className="section-head"><div><h2>Command Generator</h2><p>Build a Minecraft Java command for the selected version.</p></div><span className="badge">COMMAND ONLY</span></div><div className="workspace-grid"><div className="panel editor">{editor()}</div><div className="panel console"><div className="console-head"><span><em></em> LIVE COMMAND</span><small>{version}</small></div><pre>{command}</pre><div className="console-actions"><button className="primary" onClick={copy}>COPY COMMAND</button><button onClick={save}>＋ SAVE</button></div></div></div></section>
+</section>}
 
-   <section id="ai-agent" className="ai-agent">
-    <div className="section-head"><div><h2>AI Command Agent</h2><p>Describe any Minecraft command in plain language and let AI build it.</p></div><span className="badge">AI • JAVA</span></div>
-    <div className="ai-panel">
-     <div className="ai-intro">
-      <div className="ai-icon">✦</div>
-      <div><strong>What do you want to create?</strong><span>Example: “Summon a zombie with full netherite armor and a glowing effect.”</span></div>
-     </div>
-     <div className="ai-input-wrap">
-      <textarea value={aiPrompt} onChange={e=>setAiPrompt(e.target.value)} onKeyDown={e=>{if((e.ctrlKey||e.metaKey)&&e.key==="Enter")generateAI()}} placeholder="Describe the command you want..."/>
-      <button className="primary ai-generate" onClick={generateAI} disabled={aiLoading||!aiPrompt.trim()}>{aiLoading?"GENERATING...":"GENERATE COMMAND"}</button>
-     </div>
-     {aiError&&<div className="ai-error">{aiError}</div>}
-     {aiCommand&&<div className="ai-result">
-      <div className="ai-result-head"><span><em></em> GENERATED COMMAND</span><small>{version}</small></div>
-      <pre>{aiCommand}</pre>
-      <div className="console-actions"><button className="primary" onClick={()=>navigator.clipboard?.writeText(aiCommand)}>COPY COMMAND</button><button onClick={()=>setAiCommand("")}>CLEAR</button></div>
-     </div>}
-    </div>
-   </section>
-
-   <section id="workspace" className="workspace"><div className="section-head"><div><h2>Command Generator</h2><p>Build a Minecraft Java command for the selected version.</p></div><span className="badge">COMMAND ONLY</span></div><div className="workspace-grid"><div className="panel editor">{editor()}</div><div className="panel console"><div className="console-head"><span><em></em> LIVE COMMAND</span><small>{version}</small></div><pre>{command}</pre><div className="console-actions"><button className="primary" onClick={copy}>COPY COMMAND</button><button onClick={save}>＋ SAVE</button></div></div></div></section>
    <footer>VOXELTOOLS <span>•</span> Built for Minecraft Java creators</footer>
   </main>
  </div>
