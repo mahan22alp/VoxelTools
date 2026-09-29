@@ -25,7 +25,7 @@ function App(){
  const [tool,setTool]=useState("command"),[page,setPage]=useState<"home"|"generator">(()=>{try{return localStorage.getItem("voxeltools-page")==="generator"?"generator":"home"}catch{return "home"}}),[query,setQuery]=useState(""),[version,setVersion]=useState(()=>{try{const stored=localStorage.getItem("voxeltools-version");return stored&&versionOptions.includes(stored)?stored:"1.21.11"}catch{return "1.21.11"}});
  const [commandQuery,setCommandQuery]=useState(""),[category,setCategory]=useState("All");
  const [dark,setDark]=useState(()=>{try{return(localStorage.getItem("voxeltools-theme")||"light")==="dark"}catch{return false}}),[mobile,setMobile]=useState(false),[saved,setSaved]=useState<string[]>(()=>{try{const raw=localStorage.getItem("voxeltools-saved");const parsed=raw?JSON.parse(raw):[];return Array.isArray(parsed)?parsed.filter((x):x is string=>typeof x==="string").slice(0,20):[]}catch{return []}}),[scrollProgress,setScrollProgress]=useState(0),[copied,setCopied]=useState(false),[copyError,setCopyError]=useState(false);
- const [form,setForm]=useState<Record<string,string>>({player:"@p",item:"diamond_sword",count:"1",mob:"zombie",enchant:"sharpness",level:"4",effect:"speed",duration:"30",amplifier:"1",x:"~",y:"~",z:"~",x1:"~",y1:"~",z1:"~",x2:"~",y2:"~",z2:"~",block:"stone"});
+ const [form,setForm]=useState<Record<string,string>>({player:"@p",item:"diamond_sword",count:"1",mob:"zombie",enchant:"sharpness",level:"4",effect:"speed",duration:"30",amplifier:"1",x:"~",y:"~",z:"~",x1:"~",y1:"~",z1:"~",x2:"~",y2:"~",z2:"~",block:"stone",components:""});
  const [naturalInput,setNaturalInput]=useState("set time to night"),[generated,setGenerated]=useState("/time set night");
  useEffect(()=>{localStorage.setItem("voxeltools-theme",dark?"dark":"light")},[dark]);
  useEffect(()=>{localStorage.setItem("voxeltools-version",version)},[version]);
@@ -41,7 +41,7 @@ function App(){
  const removeSaved=(item:string)=>{const n=saved.filter(x=>x!==item);setSaved(n);localStorage.setItem("voxeltools-saved",JSON.stringify(n));};
  const field=(label:string,key:string,opts?:string[])=> <label className="field"><span>{label}</span>{opts?<select value={form[key]||opts[0]} onChange={e=>set(key,e.target.value)}>{opts.map(o=><option key={o}>{o}</option>)}</select>:<input value={form[key]||""} onChange={e=>set(key,e.target.value)} />}</label>;
  const editor=()=>{
-  if(tool==="give")return <div className="grid">{field("Player","player")} {field("Item","item",items)} {field("Count","count")}</div>;
+  if(tool==="give")return <div className="grid">{field("Player","player")} {field("Item","item",items)} {field("Count","count")} <label className="field wide"><span>Components (1.20.5+)</span><input value={form.components||""} onChange={e=>set("components",e.target.value)} placeholder="damage=1,custom_data={...}" /></label></div>;
   if(tool==="summon")return <div className="grid">{field("Mob","mob",mobs)} {field("X","x")} {field("Y","y")} {field("Z","z")}</div>;
   if(tool==="enchant")return <div className="grid">{field("Player","player")} {field("Enchantment","enchant",enchants)} {field("Level","level")}</div>;
   if(tool==="effect")return <div className="grid">{field("Player","player")} {field("Effect","effect",effects)} {field("Duration","duration")} {field("Amplifier","amplifier")}</div>;
