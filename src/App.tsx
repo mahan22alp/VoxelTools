@@ -3,6 +3,7 @@ import {minecraftCommands} from "./data/commands";
 import {versionOptions} from "./data/versions";
 import {isCommandAvailable,syntaxFor} from "./engine/versionResolver";
 import {naturalCommand} from "./engine/commandGenerator";
+import {generateToolCommand} from "./engine/toolGenerator";
 
 type Tool={id:string;name:string;icon:string;desc:string};
 const tools:Tool[]=[
@@ -28,23 +29,13 @@ function App(){
  const [naturalInput,setNaturalInput]=useState("set time to night"),[generated,setGenerated]=useState("/time set night");
  useEffect(()=>{localStorage.setItem("voxeltools-theme",dark?"dark":"light")},[dark]);
  useEffect(()=>{localStorage.setItem("voxeltools-version",version)},[version]);
+ useEffect(()=>{setGenerated(naturalCommand(naturalInput,version))},[naturalInput,version]);
  useEffect(()=>{const onScroll=()=>{const max=document.documentElement.scrollHeight-window.innerHeight;setScrollProgress(max>0?Math.min(100,Math.max(0,window.scrollY/max*100)):0)};onScroll();window.addEventListener("scroll",onScroll,{passive:true});return()=>window.removeEventListener("scroll",onScroll)},[]);
  useEffect(()=>{const observer=new IntersectionObserver(entries=>entries.forEach(entry=>{if(entry.isIntersecting)entry.target.classList.add("in-view")}),{threshold:.12,rootMargin:"0px 0px -35px 0px"});document.querySelectorAll(".reveal").forEach(el=>observer.observe(el));return()=>observer.disconnect()},[]);
  const categories=useMemo(()=>["All",...Array.from(new Set(minecraftCommands.map(c=>c.category)))],[]);
  const allCommands=useMemo(()=>minecraftCommands.filter(c=>(category==="All"||c.category===category)&&isCommandAvailable(c,version)&&(c.name+" "+syntaxFor(c,version)+" "+c.desc).toLowerCase().includes(commandQuery.toLowerCase())),[category,commandQuery,version]);
  const set=(k:string,v:string)=>setForm(f=>({...f,[k]:v}));
- const command=useMemo(()=>{
-  const f=form,p=f.player||"@p";
-  switch(tool){
-   case"give":return `/give ${p} ${f.item||"diamond_sword"} ${f.count||"1"}`;
-   case"summon":return `/summon ${f.mob||"zombie"} ${f.x||"~"} ${f.y||"~"} ${f.z||"~"}`;
-   case"enchant":return `/enchant ${p} ${f.enchant||"sharpness"} ${f.level||"4"}`;
-   case"effect":return `/effect give ${p} ${f.effect||"speed"} ${f.duration||"30"} ${f.amplifier||"1"}`;
-   case"fill":return `/fill ${f.x1||"~"} ${f.y1||"~"} ${f.z1||"~"} ${f.x2||"~"} ${f.y2||"~"} ${f.z2||"~"} ${f.block||"stone"}`;
-   case"teleport":return `/tp ${p} ${f.x||"0"} ${f.y||"64"} ${f.z||"0"}`;
-   default:return generated;
-  }
- },[tool,form,generated]);
+ const command=useMemo(()=>tool==="command"?generated:generateToolCommand(tool,form,version),[tool,form,generated,version]);
  const copy=async()=>{try{if(!navigator.clipboard)throw new Error("Clipboard unavailable");await navigator.clipboard.writeText(command);setCopied(true);setCopyError(false)}catch{setCopied(false);setCopyError(true)}window.setTimeout(()=>{setCopied(false);setCopyError(false)},1400)};
  const save=()=>{const n=[...new Set([command,...saved])].slice(0,20);setSaved(n);localStorage.setItem("voxeltools-saved",JSON.stringify(n));};
  const removeSaved=(item:string)=>{const n=saved.filter(x=>x!==item);setSaved(n);localStorage.setItem("voxeltools-saved",JSON.stringify(n));};
@@ -81,7 +72,7 @@ function App(){
     </section>
     <section className="tools-section section-wrap reveal"><div className="section-kicker">EXPLORE MORE</div><div className="tools-heading"><h2>Powerful tools<br/><em>for every player.</em></h2><div className="tools-grid">{tools.map(t=><button className="tool-tile" key={t.id} onClick={()=>{setTool(t.id);switchPage("generator")}}><span>{t.icon}</span><div><b>{t.name}</b><small>{t.desc}</small></div><i>↗</i></button>)}</div></div></section>
    </section> :
-   <section key="generator" className="page-view generator-page section-wrap reveal in-view"><div className="generator-shell"><div className="section-kicker">COMMAND GENERATOR</div><div className="generator-title"><div><h2>Generate any<br/><em>Minecraft command.</em></h2><p>Describe what you want in normal English and get a command instantly.</p></div><span className="version-chip">{version}</span></div><div className="generator-layout"><div className="generator-left"><div className="natural-input"><span>✦</span><input aria-label="Command request" value={naturalInput} onChange={e=>{setNaturalInput(e.target.value);setGenerated(naturalCommand(e.target.value,version))}} placeholder="e.g. give me 10 diamonds, set time to night..."/></div><div className="example-row"><button onClick={()=>{setNaturalInput("set time to night");setGenerated(naturalCommand("set time to night",version))}}>set time to night</button><button onClick={()=>{setNaturalInput("weather rain");setGenerated(naturalCommand("weather rain",version))}}>weather rain</button><button onClick={()=>{setNaturalInput("tp @p 0 64 0");setGenerated(naturalCommand("tp @p 0 64 0",version))}}>tp @p 0 64 0</button></div><div className="generator-tools"><div className="tool-picker">{tools.slice(1).map(t=><button className={tool===t.id?"tool-chip active":"tool-chip"} key={t.id} onClick={()=>setTool(t.id)}>{t.icon}<span>{t.name.replace(" Generator","")}</span></button>)}</div><div className="form-card">{editor()}</div></div></div><div className="output-card"><div className="output-top"><span><i></i>GENERATED COMMAND</span><small>{version}</small></div><pre>{command}</pre><div className="output-actions"><button className={copied?"copy-btn copied":"copy-btn"} onClick={copy}>{copied?"Copied ✓":"Copy command"}</button><button className="save-btn" onClick={save}>＋ Save</button></div><div className="output-note">Live preview updates as you type.</div></div></div></div></section>}
+   <section key="generator" className="page-view generator-page section-wrap reveal in-view"><div className="generator-shell"><div className="section-kicker">COMMAND GENERATOR</div><div className="generator-title"><div><h2>Generate any<br/><em>Minecraft command.</em></h2><p>Describe what you want in normal English and get a command instantly.</p></div><span className="version-chip">{version}</span></div><div className="generator-layout"><div className="generator-left"><div className="natural-input"><span>✦</span><input aria-label="Command request" value={naturalInput} onChange={e=>{setNaturalInput(e.target.value);setGenerated(naturalCommand(e.target.value,version))}} placeholder="e.g. give me 10 diamonds, set time to night..."/></div><div className="example-row"><button onClick={()=>{setNaturalInput("set time to night");setGenerated(naturalCommand("set time to night",version))}}>set time to night</button><button onClick={()=>{setNaturalInput("weather rain");setGenerated(naturalCommand("weather rain",version))}}>weather rain</button><button onClick={()=>{setNaturalInput("tp @p 0 64 0");setGenerated(naturalCommand("tp @p 0 64 0",version))}}>tp @p 0 64 0</button></div><div className="generator-tools"><div className="tool-picker">{tools.slice(1).map(t=><button className={tool===t.id?"tool-chip active":"tool-chip"} key={t.id} onClick={()=>setTool(t.id)}>{t.icon}<span>{t.name.replace(" Generator","")}</span></button>)}</div><div className="form-card">{editor()}</div></div></div><div className="output-card"><div className="output-top"><span><i></i>GENERATED COMMAND</span><small>{version}</small></div><pre>{command}</pre><div className="output-actions"><button className={copied?"copy-btn copied":"copy-btn"} onClick={copy}>{copied?"Copied ✓":"Copy command"}</button><button className="save-btn" onClick={save}>＋ Save</button></div><div className="output-note">{copyError?"Clipboard access failed.":"Live preview updates as you type."}</div></div><div className="saved-panel"><div className="saved-header"><b>Saved commands</b><span>{saved.length}/20</span></div>{saved.length?<div className="saved-list">{saved.map(item=><div className="saved-item" key={item}><code>{item}</code><button onClick={()=>navigator.clipboard?.writeText(item)}>Copy</button><button onClick={()=>removeSaved(item)}>Remove</button></div>)}</div>:<p>No saved commands yet.</p>}</div></div></div></div></section>}
   </main>
   <footer className="site-footer"><div><b>Voxel<span>Tools</span></b><span> • Minecraft Java command utilities</span></div><div>Build better commands.</div></footer>
  </div>
