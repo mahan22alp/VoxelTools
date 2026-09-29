@@ -18,7 +18,7 @@ export const minecraftCommands:MinecraftCommand[]=[
 {name:"difficulty",syntax:"/difficulty <peaceful|easy|normal|hard>",category:"World",desc:"Set world difficulty.",versions:"Java"},
 {name:"effect",syntax:"/effect <give|clear> <targets> [effect] [seconds] [amplifier] [hideParticles]",category:"Players",desc:"Give or clear status effects.",versions:"Java"},
 {name:"enchant",syntax:"/enchant <targets> <enchantment> [level]",category:"Players",desc:"Enchant an item held by a target.",versions:"Java"},
-{name:"execute",syntax:"/execute <as|at|positioned|if|unless|run|store|...>",syntaxByVersion:{"1.21.11":"/execute <as|at|positioned|if|unless|run|store|on|summon|...> · adds stopwatch conditions"}},category:"Logic",desc:"Run commands with conditions, contexts and transformations.",versions:"Java"},
+{name:"execute",syntax:"/execute <as|at|positioned|if|unless|run|store|...>",category:"Logic",desc:"Run commands with conditions, contexts and transformations.",versions:"Java",syntaxByVersion:{"1.21.11":"/execute <as|at|positioned|if|unless|run|store|on|summon|...> · adds stopwatch conditions"}},
 {name:"experience",syntax:"/experience <add|set|query> <targets> <amount> [points|levels]",category:"Players",desc:"Add, set or query experience.",versions:"Java"},
 {name:"fill",syntax:"/fill <from> <to> <block> [destroy|hollow|keep|outline|replace]",category:"World",desc:"Fill a region with blocks.",versions:"Java"},
 {name:"fillbiome",introduced:"1.19.3",syntax:"/fillbiome <from> <to> <biome>",category:"World",desc:"Change the biome data in a region.",versions:"Java"},
