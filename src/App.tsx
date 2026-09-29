@@ -20,29 +20,41 @@ const effects=["speed","strength","haste","regeneration","resistance","fire_resi
 
 
 const itemAliases:Record<string,string>={
- sword:"diamond_sword", "diamond sword":"diamond_sword", "diamond_sword":"diamond_sword",
- "netherite sword":"netherite_sword", "netherite_sword":"netherite_sword",
- pickaxe:"diamond_pickaxe", "diamond pickaxe":"diamond_pickaxe", "netherite pickaxe":"netherite_pickaxe",
- helmet:"diamond_helmet", "diamond helmet":"diamond_helmet", elytra:"elytra",
- "golden apple":"golden_apple", apple:"golden_apple", diamond:"diamond"
+ sword:"diamond_sword","swords":"diamond_sword","diamond sword":"diamond_sword","diamond swords":"diamond_sword","diamond_sword":"diamond_sword",
+ "netherite sword":"netherite_sword","netherite swords":"netherite_sword","netherite_sword":"netherite_sword",
+ pickaxe:"diamond_pickaxe","pickaxes":"diamond_pickaxe","diamond pickaxe":"diamond_pickaxe","diamond pickaxes":"diamond_pickaxe","netherite pickaxe":"netherite_pickaxe",
+ helmet:"diamond_helmet","helmets":"diamond_helmet","diamond helmet":"diamond_helmet","diamond helmets":"diamond_helmet",
+ elytra:"elytra","golden apple":"golden_apple","golden apples":"golden_apple","apple":"apple","apples":"apple",
+ diamond:"diamond","diamonds":"diamond","emerald":"emerald","emeralds":"emerald","iron":"iron_ingot","iron ingot":"iron_ingot","iron ingots":"iron_ingot",
+ gold:"gold_ingot","gold ingot":"gold_ingot","gold ingots":"gold_ingot","netherite":"netherite_ingot","netherite ingot":"netherite_ingot","netherite ingots":"netherite_ingot"
 };
 
 function naturalCommand(input:string){
- const s=input.trim().toLowerCase().replace(/[?!.]/g,"");
+ const s=input.trim().toLowerCase().replace(/[?!.]/g,"").replace(/\s+/g," ");
  if(!s) return "/give @p minecraft:diamond_sword 1";
  if(s.startsWith("/")) return input.trim();
- const count=s.match(/\b(\d+)\b/)?.[1]||"1";
- const cleaned=s.replace(/\b(give|me|get|a|an|some|please|minecraft)\b/g,"").replace(/\b\d+\b/g,"").replace(/\s+/g," ").trim();
- const key=Object.keys(itemAliases).sort((a,b)=>b.length-a.length).find(k=>cleaned.includes(k));
- if(/\b(give|get)\b/.test(s)&&key) return `/give @p minecraft:${itemAliases[key]} ${count}`;
- if(/^give\s+(?:me\s+)?[a-z0-9_:-]+(?:\s+\d+)?$/.test(s)){
-   const item=s.replace(/^give\s+(?:me\s+)?/,"").replace(/\s+\d+$/,"");
-   return `/give @p ${item.includes(":")?item:"minecraft:"+item} ${count}`;
+
+ if(/\b(set|change)\b.*\btime\b/.test(s)){
+   if(s.includes("night")) return "/time set night";
+   if(s.includes("noon")) return "/time set noon";
+   if(s.includes("midnight")) return "/time set midnight";
+   if(s.includes("day")) return "/time set day";
  }
- if(/(set|change).*(time|day|night)/.test(s)) return `/time set ${s.includes("night")?"night":"day"}`;
- if(s.includes("creative")) return "/gamemode creative @p";
- if(s.includes("survival")) return "/gamemode survival @p";
-  return `// I couldn't understand that yet. Try "give me sword" or "give me 10 diamonds"`;
+ const mode=s.match(/\b(creative|survival|adventure|spectator)\b/);
+ if(mode) return `/gamemode ${mode[1]} @p`;
+
+ if(/^(give|get)\b/.test(s)){
+   const match=s.match(/^(?:give|get)(?:\s+me)?\s+(?:(\d+)\s+)?(.+?)(?:\s+(\d+))?$/);
+   if(match){
+     const count=match[1]||match[3]||"1";
+     const raw=match[2].trim().replace(/\b(a|an|some|please|minecraft)\b/g,"").replace(/\s+/g," ").trim();
+     const key=Object.keys(itemAliases).sort((a,b)=>b.length-a.length).find(k=>raw===k||raw.includes(k));
+     const item=key?itemAliases[key]:(raw.includes(":")?raw:`minecraft:${raw.replace(/\s+/g,"_")}`);
+     return `/give @p ${item} ${count}`;
+   }
+ }
+
+ return `// I couldn't understand that yet. Try "give me sword", "give me 10 diamonds", or "set time to night"`;
 }
 
 const minecraftCommands:MinecraftCommand[]=[
@@ -141,7 +153,8 @@ const minecraftCommands:MinecraftCommand[]=[
 function App(){
  const [tool,setTool]=useState("command"),[page,setPage]=useState<"home"|"generator">("home"),[query,setQuery]=useState(""),[version,setVersion]=useState("1.21.11");
  const [commandQuery,setCommandQuery]=useState(""),[category,setCategory]=useState("All");
- const [dark,setDark]=useState(true),[mobile,setMobile]=useState(false),[saved,setSaved]=useState<string[]>([]);\n const [form,setForm]=useState<Record<string,string>>({player:"@p",item:"diamond_sword",count:"1",mob:"zombie",enchant:"sharpness",level:"4",effect:"speed",duration:"30",amplifier:"1",x:"~",y:"~",z:"~",x1:"~",y1:"~",z1:"~",x2:"~",y2:"~",z2:"~",block:"stone"});
+ const [dark,setDark]=useState(true),[mobile,setMobile]=useState(false),[saved,setSaved]=useState<string[]>([]);
+ const [form,setForm]=useState<Record<string,string>>({player:"@p",item:"diamond_sword",count:"1",mob:"zombie",enchant:"sharpness",level:"4",effect:"speed",duration:"30",amplifier:"1",x:"~",y:"~",z:"~",x1:"~",y1:"~",z1:"~",x2:"~",y2:"~",z2:"~",block:"stone"});
  const [naturalInput,setNaturalInput]=useState("give me sword");
  const [generated,setGenerated]=useState("/give @p minecraft:diamond_sword 1");
  const visible=useMemo(()=>tools.filter(t=>(t.name+" "+t.desc).toLowerCase().includes(query.toLowerCase())),[query]);
