@@ -1,12 +1,10 @@
 import {useEffect,useMemo,useState} from "react";
 import {minecraftCommands} from "./data/commands";
 import {versionOptions} from "./data/versions";
-import {versionOrder,versionKey,versionAtLeast,syntaxFor} from "./engine/versionResolver";
+import {syntaxFor} from "./engine/versionResolver";
 import {naturalCommand} from "./engine/commandGenerator";
 
 type Tool={id:string;name:string;icon:string;desc:string};
-type MinecraftCommand={name:string;syntax:string;category:string;desc:string;versions:string;syntaxByVersion?:Record<string,string>};
-
 const tools:Tool[]=[
 {id:"command",name:"Command Generator",icon:"⌘",desc:"Build common Minecraft commands"},
 {id:"give",name:"Give Generator",icon:"◆",desc:"Create /give item commands"},
@@ -21,8 +19,6 @@ const mobs=["zombie","skeleton","creeper","spider","enderman","warden","iron_gol
 const items=["diamond_sword","netherite_sword","diamond_pickaxe","netherite_pickaxe","diamond_helmet","netherite_chestplate","elytra","golden_apple"];
 const enchants=["sharpness","protection","efficiency","unbreaking","fortune","mending","fire_aspect","looting"];
 const effects=["speed","strength","haste","regeneration","resistance","fire_resistance","night_vision","jump_boost"];
-
-const versionOptions=["All versions","1.21.11","1.21.10","1.21.9","1.21.8","1.21.7","1.21.6","1.21.5","1.21.4","1.21.3","1.21.2","1.21.1","1.21","1.20.6","1.20.5","1.20.4","1.20.2","1.20.1","1.20","1.19.4","1.19.3","1.19.2","1.19.1","1.19","1.18.2","1.18.1","1.18","1.17.1","1.17","1.16.5","1.16.4","1.16.3","1.16.2","1.16.1","1.15.2","1.14.4","1.13.2","1.12.2","1.11.2","1.10.2","1.9.4","1.8.9","1.7.10"];
 
 function App(){
  const [tool,setTool]=useState("command"),[page,setPage]=useState<"home"|"generator">(()=>{try{return localStorage.getItem("voxeltools-page")==="generator"?"generator":"home"}catch{return "home"}}),[query,setQuery]=useState(""),[version,setVersion]=useState("1.21.11");
