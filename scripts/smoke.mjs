@@ -1,4 +1,4 @@
-import {spawn} from "node:child_process";
+import {createServer} from "node:http";
 import {existsSync,readFileSync} from "node:fs";
 
 const app=readFileSync("src/App.tsx","utf8");
@@ -11,6 +11,7 @@ const checks=[
   [app,'className="saved-panel"',"saved command panel"],
   [app,'naturalCommand(naturalInput,version)',"version-aware live generator"],
   [app,'localStorage.getItem("voxeltools-saved")',"saved command persistence"],
+  [app,'localStorage.getItem("voxeltools-version")',"version persistence"],
   [css,".saved-panel","saved panel styles"],
   [commands,'introduced:"26.3"',"26.3 command metadata"],
   [index,"VoxelTools","production HTML"]
@@ -19,24 +20,31 @@ const checks=[
 for(const [source,needle,label] of checks){
   if(!String(source).includes(String(needle))) throw new Error("Smoke check failed: "+label);
 }
-
 if(!existsSync("dist")) throw new Error("Smoke check failed: dist directory missing");
 
-const port=4173;
-const child=spawn("npm",["run","preview","--","--host","127.0.0.1","--port",String(port)],{stdio:["ignore","pipe","pipe"]});
-const url="http://127.0.0.1:"+port+"/VoxelTools/";
-let response;
-let lastError;
-for(let i=0;i<30;i++){
-  try{
-    response=await fetch(url);
-    if(response.ok) break;
-  }catch(error){lastError=error}
-  await new Promise(r=>setTimeout(r,250));
-}
-if(!response?.ok) throw new Error("Smoke check failed: preview server unavailable"+(lastError?" ("+lastError+")":""));
-const body=await response.text();
-if(!body.includes("VoxelTools")) throw new Error("Smoke check failed: preview response missing VoxelTools");
+const html=index;
+const server=createServer((req,res)=>{
+  if(req.url==="/VoxelTools/"||req.url==="/VoxelTools/index.html"){
+    res.writeHead(200,{"content-type":"text/html; charset=utf-8"});
+    res.end(html);
+    return;
+  }
+  res.writeHead(404);
+  res.end("Not found");
+});
 
-child.kill("SIGTERM");
+await new Promise((resolve,reject)=>{
+  server.once("error",reject);
+  server.listen(4173,"127.0.0.1",resolve);
+});
+
+try{
+  const response=await fetch("http://127.0.0.1:4173/VoxelTools/");
+  if(!response.ok) throw new Error("HTTP "+response.status);
+  const body=await response.text();
+  if(!body.includes("VoxelTools")) throw new Error("Response missing VoxelTools");
+}finally{
+  await new Promise(resolve=>server.close(()=>resolve()));
+}
+
 console.log("Smoke checks passed.");
