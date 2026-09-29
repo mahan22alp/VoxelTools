@@ -73,7 +73,7 @@ export const minecraftCommands:MinecraftCommand[]=[
 {name:"tell",syntax:"/tell <targets> <message>",category:"Chat",desc:"Send a private message.",versions:"Java"},
 {name:"tellraw",syntax:"/tellraw <targets> <message>",category:"Chat",desc:"Send a JSON-formatted chat message.",versions:"Java"},
 {name:"tick",introduced:"1.20.3",syntax:"/tick <query|rate|step|sprint|freeze|unfreeze>",category:"World",desc:"Control and inspect game tick behavior.",versions:"Java"},
-{name:"time",syntax:"/time <set|add|query> <value>",syntaxByVersion:{"26.1":"/time [of <clock>] <set|add|pause|resume|rate|query> ..."}},category:"World",desc:"Set, add or query world time.",versions:"Java"},
+{name:"time",syntax:"/time <set|add|query> <value>",category:"World",desc:"Set, add or query world time.",versions:"Java",syntaxByVersion:{"26.1":"/time [of <clock>] <set|add|pause|resume|rate|query> ..."}},
 {name:"title",syntax:"/title <targets> <clear|reset|title|subtitle|actionbar|times>",category:"Visual",desc:"Display titles and action bars.",versions:"Java"},
 {name:"trigger",syntax:"/trigger <objective> <add|set> <value>",category:"Logic",desc:"Trigger a scoreboard objective for a player.",versions:"Java"},
 {name:"transfer",introduced:"1.20.5",syntax:"/transfer <host> [port]",category:"Server",desc:"Transfer a player to another server.",versions:"Java"},
