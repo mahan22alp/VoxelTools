@@ -40,6 +40,9 @@ jobs:
       - name: Build VoxelTools
         run: npm run build
 
+      - name: Run production smoke test
+        run: npm run smoke
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
