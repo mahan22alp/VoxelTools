@@ -7,9 +7,10 @@ import {naturalCommand} from "./engine/commandGenerator";
 import {generateToolCommand} from "./engine/toolGenerator";
 import GlobalSearch from "./components/GlobalSearch";
 import SavedCommands from "./components/SavedCommands";
+import AICommandAgent from "./components/AICommandAgent";
 import VersionSelector from "./components/VersionSelector";
 
-type Page="home"|"generator";
+type Page="home"|"agent";
 
 type Theme="light"|"dark";
 type Tool={id:string;name:string;icon:string;desc:string};
@@ -52,7 +53,7 @@ function Icon({name}:{name:"search"|"arrow"|"copy"|"check"|"spark"|"grid"|"clock
 
 function App(){
  const searchRef=useRef<HTMLInputElement|null>(null);
- const [page,setPage]=useState<Page>(()=>safeRead("voxeltools-page","home")==="generator"?"generator":"home");
+ const [page,setPage]=useState<Page>(()=>safeRead("voxeltools-page","home")==="agent"?"agent":"home");
  const [theme,setTheme]=useState<Theme>(getInitialTheme);
  const [tool,setTool]=useState("command");
  const [query,setQuery]=useState("");
@@ -137,7 +138,7 @@ function App(){
        <GlobalSearch ref={searchRef} value={query} onChange={value=>{setQuery(value);setCommandQuery(value)}} onEnter={openCommands}/>
        <nav className="main-nav" aria-label="Primary navigation">
          <button className={page==="home"?"nav active":"nav"} onClick={()=>switchPage("home")}>Home</button>
-         <button className={page==="generator"?"nav active":"nav"} onClick={()=>switchPage("generator")}>Generator</button>
+         <button className={page==="agent"?"nav active":"nav"} onClick={()=>switchPage("agent")}>AI Agent</button>
          <button className="nav" onClick={openCommands}>Commands</button>
        </nav>
        <div className="header-actions"><VersionSelector value={version} options={versionOptions} onChange={setVersion}/><button className="theme-toggle" onClick={()=>setTheme(theme==="light"?"dark":"light")} aria-label={`Switch to ${theme==="light"?"dark":"light"} mode`} title={`Switch to ${theme==="light"?"dark":"light"} mode`}><Icon name={theme==="light"?"moon":"sun"}/><span>{theme==="light"?"Dark":"Light"}</span></button></div>
@@ -195,12 +196,7 @@ function App(){
     <section className="cta section-wrap reveal"><div><div><span className="section-eyebrow light">READY WHEN YOU ARE</span><h2>Make the next command<br/><em>the easy part.</em></h2></div><button onClick={()=>switchPage("generator")}>Open generator <Icon name="arrow"/></button></div></section>
    </>:<>
     <section className="generator-page section-wrap">
-      <div className="generator-top reveal in-view"><div><span className="section-eyebrow">COMMAND GENERATOR</span><h2>Describe it.<br/><em>Build it live.</em></h2><p>Start in plain English, switch to a focused builder when you need more control, and keep the selected Minecraft version in view.</p></div><div className="generator-context"><span className="context-badge"><i></i> LOCAL</span><VersionSelector value={version} options={versionOptions} onChange={setVersion}/></div></div>
-      <div className="generator-workspace reveal in-view">
-        <section className="generator-panel"><div className="workspace-heading"><div><span>REQUEST</span><b>What should the command do?</b></div><span className="workspace-key">/</span></div><div className="natural-input"><Icon name="spark"/><input aria-label="Command request" value={naturalInput} onChange={e=>setNaturalInput(e.target.value)} placeholder="e.g. set time to night"/><span>LIVE</span></div><div className="example-row"><span>Try</span><button onClick={()=>setNaturalInput("set time to night")}>set time to night</button><button onClick={()=>setNaturalInput("weather rain")}>weather rain</button><button onClick={()=>setNaturalInput("set time to day")}>set time to day</button></div><div className="builder-zone"><div className="builder-title"><span>FOCUSED BUILDERS</span><small>Pick one to reveal guided fields.</small></div><div className="builder-tabs">{tools.slice(1).map(item=><button className={tool===item.id?"tool-chip active":"tool-chip"} key={item.id} onClick={()=>setTool(item.id)}>{item.icon}<span>{item.name.replace(" builder","")}</span></button>)}</div><div className="form-card">{editor()}</div></div></section>
-        <aside className="output-panel"><div className="output-header"><div><span>OUTPUT</span><b>{generating?"Updating":"Ready to use"}</b></div><strong>{version}</strong></div><div className="output-code">{generating?<div className="shimmer"><span></span><span></span></div>:<pre>{command}</pre>}</div><div className="output-actions"><button className="copy-btn" onClick={()=>copyText(command,"generator")}>{copied==="generator"?<><Icon name="check"/>Copied</>:<><Icon name="copy"/>Copy command</>}</button><button className="save-btn" onClick={save}><Icon name="bookmark"/>Save</button></div><div className="output-state"><span className={copyError?"state-dot error":"state-dot"}></span>{copyError?"Clipboard access failed.":copied==="generator"?"Copied to clipboard.":"No network request needed."}</div></aside>
-      </div>
-      <div className="generator-lower reveal in-view"><SavedCommands items={saved} onRemove={removeSaved} onCopy={item=>copyText(item,`saved-${item}`)}/><div className="tip-card"><span>TIP</span><b>Change versions without losing your request.</b><small>Your input and workspace stay intact while the syntax context changes.</small></div></div>
+      <AICommandAgent />
     </section>
    </>}
    </main>
