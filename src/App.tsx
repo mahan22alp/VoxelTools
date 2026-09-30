@@ -10,7 +10,7 @@ import SavedCommands from "./components/SavedCommands";
 import AICommandAgent from "./components/AICommandAgent";
 import VersionSelector from "./components/VersionSelector";
 
-type Page="home"|"agent";
+type Page="home"|"generator"|"agent";
 
 type Theme="light"|"dark";
 type Tool={id:string;name:string;icon:string;desc:string};
@@ -53,7 +53,7 @@ function Icon({name}:{name:"search"|"arrow"|"copy"|"check"|"spark"|"grid"|"clock
 
 function App(){
  const searchRef=useRef<HTMLInputElement|null>(null);
- const [page,setPage]=useState<Page>(()=>safeRead("voxeltools-page","home")==="agent"?"agent":"home");
+ const [page,setPage]=useState<Page>(()=>{const stored=safeRead("voxeltools-page","home");return stored==="agent"||stored==="generator"?stored:"home"});
  const [theme,setTheme]=useState<Theme>(getInitialTheme);
  const [tool,setTool]=useState("command");
  const [query,setQuery]=useState("");
@@ -114,7 +114,8 @@ function App(){
    try{if(!navigator.clipboard)throw new Error("Clipboard unavailable");await navigator.clipboard.writeText(value);setCopied(key);setCopyError(false);window.setTimeout(()=>setCopied(""),1500)}
    catch{setCopyError(true);setCopied("");window.setTimeout(()=>setCopyError(false),1600)}
  };
- const save=()=>{const next=[...new Set([command,...saved])].slice(0,20);setSaved(next);localStorage.setItem("voxeltools-saved",JSON.stringify(next));};
+ const saveCommand=(value:string)=>{const next=[...new Set([value,...saved])].slice(0,20);setSaved(next);localStorage.setItem("voxeltools-saved",JSON.stringify(next));};
+ const save=()=>saveCommand(command);
  const removeSaved=(item:string)=>{const next=saved.filter(x=>x!==item);setSaved(next);localStorage.setItem("voxeltools-saved",JSON.stringify(next));};
 
  const field=(label:string,key:string,opts?:string[])=><label className="field"><span>{label}</span>{opts?<select value={form[key]||opts[0]} onChange={e=>set(key,e.target.value)}>{opts.map(o=><option key={o}>{o}</option>)}</select>:<input value={form[key]||""} onChange={e=>set(key,e.target.value)}/>}</label>;
@@ -138,6 +139,7 @@ function App(){
        <GlobalSearch ref={searchRef} value={query} onChange={value=>{setQuery(value);setCommandQuery(value)}} onEnter={openCommands}/>
        <nav className="main-nav" aria-label="Primary navigation">
          <button className={page==="home"?"nav active":"nav"} onClick={()=>switchPage("home")}>Home</button>
+         <button className={page==="generator"?"nav active":"nav"} onClick={()=>switchPage("generator")}>Generator</button>
          <button className={page==="agent"?"nav active":"nav"} onClick={()=>switchPage("agent")}>AI Agent</button>
          <button className="nav" onClick={openCommands}>Commands</button>
        </nav>
@@ -194,9 +196,36 @@ function App(){
     </section>
 
     <section className="cta section-wrap reveal"><div><div><span className="section-eyebrow light">READY WHEN YOU ARE</span><h2>Make the next command<br/><em>the easy part.</em></h2></div><button onClick={()=>switchPage("generator")}>Open generator <Icon name="arrow"/></button></div></section>
+   </>:page==="generator"?<>
+    <section className="generator-page section-wrap">
+      <div className="generator-top">
+        <div><span className="section-eyebrow">GENERATOR</span><h2>Build the command,<br/><em>not the syntax.</em></h2><p>Pick a builder, fill in the fields, and copy version-ready syntax.</p></div>
+        <div className="generator-context"><span className="context-badge"><i></i>{version}</span></div>
+      </div>
+      <div className="generator-workspace">
+        <div className="generator-panel">
+          <div className="workspace-heading"><div><span>BUILDER</span><b>{tools.find(t=>t.id===tool)?.name}</b></div></div>
+          <div className="builder-zone">
+            <div className="builder-title"><span>CHOOSE A TOOL</span></div>
+            <div className="builder-tabs">{tools.map(t=><button key={t.id} className={tool===t.id?"tool-chip active":"tool-chip"} onClick={()=>setTool(t.id)}><span>{t.icon}</span>{t.name}</button>)}</div>
+            <div className="form-card">{editor()}</div>
+          </div>
+        </div>
+        <aside className="output-panel">
+          <div className="output-header"><div><span>OUTPUT</span><b>Command</b></div><strong>{version}</strong></div>
+          <div className="output-code">{generating&&tool==="command"?<div className="shimmer"><span/><span/></div>:<pre>{command}</pre>}</div>
+          <div className="output-actions"><button className="copy-btn" onClick={()=>copyText(command,"output")}>{copied==="output"?"Copied":"Copy command"}</button><button className="save-btn" onClick={save}>Save</button></div>
+          <div className="output-state"><span className={copyError?"state-dot error":"state-dot"}></span>{copyError?"Copy failed. Select the text manually.":"Generated locally"}</div>
+        </aside>
+      </div>
+      <div className="generator-lower">
+        <div className="tip-card"><span>TIP</span><b>Press / to search</b><small>Jump to the library search from anywhere on the site.</small></div>
+        <SavedCommands items={saved} onRemove={removeSaved} onCopy={value=>copyText(value,`saved-${value}`)}/>
+      </div>
+    </section>
    </>:<>
     <section className="generator-page section-wrap">
-      <AICommandAgent />
+      <AICommandAgent version={version} onSave={saveCommand}/>
     </section>
    </>}
    </main>

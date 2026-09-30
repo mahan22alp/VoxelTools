@@ -1,0 +1,21 @@
+.ai-agent{max-width:860px;margin:0 auto;display:grid;gap:22px}
+.ai-head h2{margin:13px 0 0;font:800 clamp(38px,4.6vw,58px)/.96 "Plus Jakarta Sans",sans-serif;letter-spacing:-3px}
+.ai-head h2 em{font-style:normal;color:var(--accent)}
+.ai-head p{margin:14px 0 0;color:var(--muted);font-size:12px;line-height:1.7}
+.ai-chat{border:1px solid var(--line);border-radius:22px;background:var(--surface);box-shadow:var(--shadow-md);overflow:hidden}
+.ai-log{display:flex;flex-direction:column;gap:12px;padding:18px;height:420px;overflow:auto}
+.ai-msg{max-width:88%;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--surface-2);font-size:12px;line-height:1.6}
+.ai-msg p{margin:0}
+.ai-msg.user{align-self:flex-end;background:var(--accent-soft);border-color:transparent}
+.ai-msg code{display:block;margin-top:10px;padding:11px 13px;border-radius:10px;background:#131419;color:#eeeefe;font:500 12px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;overflow-wrap:anywhere}
+.ai-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.ai-actions button,.ai-examples button{height:30px;padding:0 11px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--muted);font-size:10px;font-weight:700;cursor:pointer;transition:.18s ease}
+.ai-actions button:hover,.ai-examples button:hover{color:var(--accent);border-color:var(--line-2);transform:translateY(-1px)}
+.ai-examples{display:flex;flex-wrap:wrap;gap:6px;padding:0 18px 14px}
+.ai-examples button{border-radius:999px}
+.ai-compose{display:flex;gap:8px;padding:12px;border-top:1px solid var(--line);background:var(--surface-2)}
+.ai-compose input{flex:1;min-width:0;height:46px;padding:0 14px;border:0;border-radius:11px;background:var(--surface);color:var(--ink);font-size:12px}
+.ai-compose input:focus,.ai-compose input:focus-visible{outline:none;box-shadow:none}
+.ai-compose button{min-width:96px;height:46px;border-radius:11px;color:#fff;font-size:11px;font-weight:800;cursor:pointer;background:linear-gradient(135deg,var(--accent),#4d43b3);transition:.18s ease}
+.ai-compose button:hover{transform:translateY(-1px)}
+@media(max-width:600px){.ai-log{height:360px}.ai-msg{max-width:94%}.ai-head h2{font-size:38px;letter-spacing:-2.2px}}
