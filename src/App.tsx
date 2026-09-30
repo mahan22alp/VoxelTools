@@ -4,31 +4,24 @@ import {minecraftCommands} from "./data/commands";
 import {versionOptions} from "./data/versions";
 import {isCommandAvailable,syntaxFor} from "./engine/versionResolver";
 import {naturalCommand} from "./engine/commandGenerator";
-import {generateToolCommand} from "./engine/toolGenerator";
 import GlobalSearch from "./components/GlobalSearch";
-import SavedCommands from "./components/SavedCommands";
 import AICommandAgent from "./components/AICommandAgent";
 import VersionSelector from "./components/VersionSelector";
 
 type Page="home"|"agent";
 
 type Theme="light"|"dark";
-type Tool={id:string;name:string;icon:string;desc:string};
+type Tool={id:string;name:string;icon:string;desc:string;seed:string};
 
 const tools:Tool[]=[
- {id:"command",name:"Smart command",icon:"⌘",desc:"Describe the result you need and get syntax instantly."},
- {id:"give",name:"Give builder",icon:"＋",desc:"Build a clean item command with guided fields."},
- {id:"summon",name:"Summon builder",icon:"✦",desc:"Configure an entity and its position."},
- {id:"enchant",name:"Enchant builder",icon:"◇",desc:"Tune an enchantment with clear controls."},
- {id:"effect",name:"Effect builder",icon:"◌",desc:"Set effect, duration, and amplifier values."},
- {id:"fill",name:"Fill builder",icon:"▦",desc:"Create precise region fill commands."},
- {id:"teleport",name:"Teleport builder",icon:"↗",desc:"Build coordinate-based movement commands."}
+ {id:"command",name:"Smart command",icon:"⌘",desc:"Describe the result you need and get syntax instantly.",seed:"set time to night"},
+ {id:"give",name:"Give builder",icon:"＋",desc:"Build a clean item command with guided fields.",seed:"give me 3 golden apple"},
+ {id:"summon",name:"Summon builder",icon:"✦",desc:"Configure an entity and its position.",seed:"summon iron_golem"},
+ {id:"enchant",name:"Enchant builder",icon:"◇",desc:"Tune an enchantment with clear controls.",seed:"enchant @p sharpness 4"},
+ {id:"effect",name:"Effect builder",icon:"◌",desc:"Set effect, duration, and amplifier values.",seed:"effect @p speed 30 1"},
+ {id:"fill",name:"Fill builder",icon:"▦",desc:"Create precise region fill commands.",seed:"fill 0 60 0 10 64 10 stone"},
+ {id:"teleport",name:"Teleport builder",icon:"↗",desc:"Build coordinate-based movement commands.",seed:"tp @p 100 64 200"}
 ];
-
-const mobs=["zombie","skeleton","creeper","spider","enderman","warden","iron_golem"];
-const items=["diamond","emerald","gold_ingot","iron_ingot","elytra","golden_apple"];
-const enchants=["sharpness","protection","efficiency","unbreaking","fortune","mending","fire_aspect","looting"];
-const effects=["speed","strength","haste","regeneration","resistance","fire_resistance","night_vision","jump_boost"];
 
 function safeRead(key:string,fallback:string){try{return localStorage.getItem(key)||fallback}catch{return fallback}}
 function getInitialTheme():Theme{
@@ -55,7 +48,6 @@ function App(){
  const searchRef=useRef<HTMLInputElement|null>(null);
  const [page,setPage]=useState<Page>(()=>safeRead("voxeltools-page","home")==="agent"?"agent":"home");
  const [theme,setTheme]=useState<Theme>(getInitialTheme);
- const [tool,setTool]=useState("command");
  const [query,setQuery]=useState("");
  const [version,setVersion]=useState(()=>{const stored=safeRead("voxeltools-version","1.21.11");return versionOptions.includes(stored)?stored:"1.21.11"});
  const [commandQuery,setCommandQuery]=useState("");
@@ -63,16 +55,9 @@ function App(){
  const [saved,setSaved]=useState<string[]>(()=>{try{const parsed=JSON.parse(localStorage.getItem("voxeltools-saved")||"[]");return Array.isArray(parsed)?parsed.filter((x):x is string=>typeof x==="string").slice(0,20):[]}catch{return []}});
  const [copied,setCopied]=useState("");
  const [copyError,setCopyError]=useState(false);
- const [generating,setGenerating]=useState(false);
  const [scrollProgress,setScrollProgress]=useState(0);
  const [mouse,setMouse]=useState({x:50,y:40});
- const [form,setForm]=useState<Record<string,string>>({
-  player:"@p",item:"diamond",count:"1",mob:"zombie",enchant:"sharpness",level:"4",
-  effect:"speed",duration:"30",amplifier:"1",x:"~",y:"~",z:"~",x1:"~",y1:"~",z1:"~",
-  x2:"~",y2:"~",z2:"~",block:"stone",components:""
- });
- const [naturalInput,setNaturalInput]=useState("set time to night");
- const [generated,setGenerated]=useState("/time set night");
+ const [agentSeed,setAgentSeed]=useState("");
 
  useEffect(()=>{localStorage.setItem("voxeltools-page",page)},[page]);
  useEffect(()=>{
@@ -80,15 +65,13 @@ function App(){
    localStorage.setItem("voxeltools-theme",theme);
  },[theme]);
  useEffect(()=>{localStorage.setItem("voxeltools-version",version)},[version]);
- useEffect(()=>{const timer=window.setTimeout(()=>setGenerated(naturalCommand(naturalInput,version)),110);setGenerating(true);return()=>window.clearTimeout(timer)},[naturalInput,version]);
- useEffect(()=>{const timer=window.setTimeout(()=>setGenerating(false),125);return()=>window.clearTimeout(timer)},[generated]);
  useEffect(()=>{
    const onScroll=()=>{const max=document.documentElement.scrollHeight-window.innerHeight;setScrollProgress(max>0?(window.scrollY/max)*100:0)};
    onScroll();window.addEventListener("scroll",onScroll,{passive:true});return()=>window.removeEventListener("scroll",onScroll);
  },[]);
  useEffect(()=>{
    const onKey=(event:KeyboardEvent)=>{
-     if(event.key==="/"&&!["INPUT","TEXTAREA","SELECT"].includes((event.target as HTMLElement)?.tagName||"")){event.preventDefault();searchRef.current?.focus()}
+     if(event.key==="/"&&["INPUT","TEXTAREA","SELECT"].indexOf((event.target as HTMLElement)?.tagName||"")<0){event.preventDefault();searchRef.current?.focus()}
      if(event.key==="Escape")setQuery("");
    };
    window.addEventListener("keydown",onKey);return()=>window.removeEventListener("keydown",onKey);
@@ -105,28 +88,17 @@ function App(){
    const hay=(c.name+" "+syntaxFor(c,version)+" "+c.desc).toLowerCase();
    return (category==="All"||c.category===category)&&isCommandAvailable(c,version)&&hay.includes(commandQuery.trim().toLowerCase());
  }),[category,commandQuery,version]);
+ const heroPreview=useMemo(()=>naturalCommand(query.trim()===""?"set time to night":query,version),[query,version]);
 
- const set=(key:string,value:string)=>setForm(prev=>({...prev,[key]:value}));
- const command=useMemo(()=>tool==="command"?generated:generateToolCommand(tool,form,version),[tool,form,generated,version]);
  const switchPage=(next:Page)=>{setPage(next);window.scrollTo({top:0,behavior:"smooth"})};
  const openCommands=()=>{switchPage("home");window.setTimeout(()=>document.getElementById("commands")?.scrollIntoView({behavior:"smooth",block:"start"}),120)};
+ const openAgent=(seed?:string)=>{if(seed!==undefined)setAgentSeed(seed);switchPage("agent")};
  const copyText=async(value:string,key:string)=>{
    try{if(!navigator.clipboard)throw new Error("Clipboard unavailable");await navigator.clipboard.writeText(value);setCopied(key);setCopyError(false);window.setTimeout(()=>setCopied(""),1500)}
    catch{setCopyError(true);setCopied("");window.setTimeout(()=>setCopyError(false),1600)}
  };
- const save=()=>{const next=[...new Set([command,...saved])].slice(0,20);setSaved(next);localStorage.setItem("voxeltools-saved",JSON.stringify(next));};
+ const saveCommand=(value:string)=>{const next=[...new Set([value,...saved])].slice(0,20);setSaved(next);localStorage.setItem("voxeltools-saved",JSON.stringify(next));};
  const removeSaved=(item:string)=>{const next=saved.filter(x=>x!==item);setSaved(next);localStorage.setItem("voxeltools-saved",JSON.stringify(next));};
-
- const field=(label:string,key:string,opts?:string[])=><label className="field"><span>{label}</span>{opts?<select value={form[key]||opts[0]} onChange={e=>set(key,e.target.value)}>{opts.map(o=><option key={o}>{o}</option>)}</select>:<input value={form[key]||""} onChange={e=>set(key,e.target.value)}/>}</label>;
- const editor=()=>{
-   if(tool==="give")return <div className="field-grid">{field("Player","player")}{field("Item","item",items)}{field("Count","count")}<label className="field wide"><span>Components</span><input value={form.components||""} onChange={e=>set("components",e.target.value)} placeholder="optional item components"/></label></div>;
-   if(tool==="summon")return <div className="field-grid">{field("Mob","mob",mobs)}{field("X","x")}{field("Y","y")}{field("Z","z")}</div>;
-   if(tool==="enchant")return <div className="field-grid">{field("Player","player")}{field("Enchantment","enchant",enchants)}{field("Level","level")}</div>;
-   if(tool==="effect")return <div className="field-grid">{field("Player","player")}{field("Effect","effect",effects)}{field("Duration","duration")}{field("Amplifier","amplifier")}</div>;
-   if(tool==="fill")return <div className="field-grid">{field("From X","x1")}{field("From Y","y1")}{field("From Z","z1")}{field("To X","x2")}{field("To Y","y2")}{field("To Z","z2")}{field("Block","block")}</div>;
-   if(tool==="teleport")return <div className="field-grid">{field("Player","player")}{field("X","x")}{field("Y","y")}{field("Z","z")}</div>;
-   return <div className="natural-editor"><span className="input-caption">DESCRIBE THE RESULT</span><div className="natural-line"><span><Icon name="spark"/></span><input aria-label="Command request" value={naturalInput} onChange={e=>setNaturalInput(e.target.value)} placeholder="Try: set time to night"/><kbd>LIVE</kbd></div><p className="hint"><span><Icon name="check"/></span> Generated locally for {version}</p></div>;
- };
 
  return <div className={`app theme-${theme}`} data-theme={theme}>
    <div className="ambient ambient-one"></div><div className="ambient ambient-two"></div>
@@ -151,13 +123,13 @@ function App(){
       <div className="hero-copy reveal in-view">
         <div className="eyebrow"><span></span>MINECRAFT JAVA COMMAND WORKSPACE <b>LOCAL-FIRST</b></div>
         <h1>Less searching.<br/><em>More building.</em></h1>
-        <p>VoxelTools is a calm, version-aware command workspace for Minecraft Java. Find syntax, build commands, and copy with confidence.</p>
-        <div className="hero-actions"><button className="primary-action" onClick={()=>switchPage("generator")}>Open generator <Icon name="arrow"/></button><button className="secondary-action" onClick={openCommands}>Browse library</button></div>
+        <p>VoxelTools is a calm, version-aware command workspace for Minecraft Java. Describe what you need, let the agent compose it, and copy with confidence.</p>
+        <div className="hero-actions"><button className="primary-action" onClick={()=>openAgent()}>Open AI agent <Icon name="arrow"/></button><button className="secondary-action" onClick={openCommands}>Browse library</button></div>
         <div className="hero-proof"><span><Icon name="check"/></span><div><b>Fast & local</b><small>No account. No backend dependency.</small></div><i></i><div><b>Version-aware</b><small>{version==="All versions"?"All releases":version} in context.</small></div></div>
       </div>
       <div className="hero-visual reveal in-view" style={{"--mx":`${mouse.x}%`,"--my":`${mouse.y}%`} as CSSProperties}>
         <div className="hero-surface"></div><div className="hero-halo"></div><div className="hero-orbit orbit-one"></div><div className="hero-orbit orbit-two"></div><div className="hero-core"></div><div className="hero-core-shine"></div>
-        <div className="glass-command"><span>LIVE PREVIEW</span><b>{generated}</b><small>{version==="All versions"?"Multiple releases":version}</small></div>
+        <div className="glass-command"><span>LIVE PREVIEW</span><b>{heroPreview}</b><small>{version==="All versions"?"Multiple releases":version}</small></div>
         <div className="glass-status"><span></span><div><b>Ready to use</b><small>Generated locally</small></div></div>
         <div className="hero-grid"></div>
       </div>
@@ -184,21 +156,19 @@ function App(){
     </section>
 
     <section className="showcase section-wrap reveal">
-      <div className="section-head compact"><div><span className="section-eyebrow">02 / TOOL SUITE</span><h2>Purpose-built for<br/><em>real tasks.</em></h2></div><p>Skip the blank page. Start from a focused builder and keep the command visible as you work.</p></div>
-      <div className="tool-grid">{tools.map((item,index)=><button className="tool-card" key={item.id} onClick={()=>{setTool(item.id);switchPage("generator")}}><span className="tool-index">{String(index+1).padStart(2,"0")}</span><span className="tool-icon">{item.icon}</span><div><b>{item.name}</b><small>{item.desc}</small></div><span className="tool-arrow">↗</span></button>)}</div>
+      <div className="section-head compact"><div><span className="section-eyebrow">02 / AGENT LAUNCHPAD</span><h2>Purpose-built for<br/><em>real tasks.</em></h2></div><p>Skip the blank page. Pick a starting point and the AI agent opens pre-filled with a working request.</p></div>
+      <div className="tool-grid">{tools.map((item,index)=><button className="tool-card" key={item.id} onClick={()=>openAgent(item.seed)}><span className="tool-index">{String(index+1).padStart(2,"0")}</span><span className="tool-icon">{item.icon}</span><div><b>{item.name}</b><small>{item.desc}</small></div><span className="tool-arrow">↗</span></button>)}</div>
     </section>
 
     <section className="workflow section-wrap reveal">
-      <div className="workflow-art"><div className="workflow-grid"></div><div className="workflow-card card-a"><span>01</span><b>Describe</b><small>Type what you want.</small></div><div className="workflow-card card-b"><span>02</span><b>Review</b><small>See version-ready syntax.</small></div><div className="workflow-card card-c"><span>03</span><b>Copy</b><small>Save it for later.</small></div><div className="workflow-core"><Icon name="spark"/></div></div>
-      <div className="workflow-copy"><span className="section-eyebrow">03 / THE FLOW</span><h2>A better path from idea<br/><em>to command.</em></h2><p>The interface keeps context close: version, request, output and saved commands live together so you can move quickly without losing your place.</p><button className="text-link" onClick={()=>switchPage("generator")}>Try the generator <Icon name="arrow"/></button></div>
+      <div className="workflow-art"><div className="workflow-grid"></div><div className="workflow-card card-a"><span>01</span><b>Describe</b><small>Type what you want.</small></div><div className="workflow-card card-b"><span>02</span><b>Plan</b><small>Watch the agent plan it.</small></div><div className="workflow-card card-c"><span>03</span><b>Copy</b><small>Save it for later.</small></div><div className="workflow-core"><Icon name="spark"/></div></div>
+      <div className="workflow-copy"><span className="section-eyebrow">03 / THE FLOW</span><h2>A better path from idea<br/><em>to command.</em></h2><p>The agent keeps context close: version, request, plan and output live together so you can move quickly without losing your place.</p><button className="text-link" onClick={()=>openAgent()}>Open the AI agent <Icon name="arrow"/></button></div>
     </section>
 
-    <section className="cta section-wrap reveal"><div><div><span className="section-eyebrow light">READY WHEN YOU ARE</span><h2>Make the next command<br/><em>the easy part.</em></h2></div><button onClick={()=>switchPage("generator")}>Open generator <Icon name="arrow"/></button></div></section>
-   </>:<>
-    <section className="generator-page section-wrap">
-      <AICommandAgent />
-    </section>
-   </>}
+    <section className="cta section-wrap reveal"><div><div><span className="section-eyebrow light">READY WHEN YOU ARE</span><h2>Make the next command<br/><em>the easy part.</em></h2></div><button onClick={()=>openAgent()}>Open AI agent <Icon name="arrow"/></button></div></section>
+   </>:<section className="generator-page section-wrap">
+    <AICommandAgent key={agentSeed} seed={agentSeed} version={version} saved={saved} onCopy={copyText} onSave={saveCommand} onRemoveSaved={removeSaved}/>
+   </section>}
    </main>
    <footer className="site-footer"><div><b>Voxel<span>Tools</span></b><span> • Minecraft Java command workspace</span></div><div><span>Local-first.</span><span> Focused.</span></div></footer>
  </div>

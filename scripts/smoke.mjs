@@ -2,6 +2,7 @@ import {createServer} from "node:http";
 import {existsSync,readFileSync} from "node:fs";
 
 const app=readFileSync("src/App.tsx","utf8");
+const agent=readFileSync("src/components/AICommandAgent.tsx","utf8");
 const css=readFileSync("src/styles.css","utf8");
 const search=readFileSync("src/components/GlobalSearch.tsx","utf8");
 const saved=readFileSync("src/components/SavedCommands.tsx","utf8");
@@ -11,7 +12,8 @@ const index=readFileSync("dist/index.html","utf8");
 const checks=[
   [search,'aria-label="Global command search"',"global search"],
   [saved,'className="saved-panel"',"saved command panel"],
-  [app,'naturalCommand(naturalInput,version)',"version-aware live generator"],
+  [app,'AICommandAgent',"AI agent page integration"],
+  [agent,'naturalCommand(',"version-aware agent generation"],
   [app,'localStorage.setItem("voxeltools-saved"',"saved command persistence"],
   [app,'localStorage.setItem("voxeltools-version"',"version persistence"],
   [css,".saved-panel","saved panel styles"],
