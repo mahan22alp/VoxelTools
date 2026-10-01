@@ -4,7 +4,8 @@ import "../agent.css";
 import SavedCommands from "./SavedCommands";
 import {useLang} from "./LangContext";
 import {agentCommands} from "../data/agentCommands";
-import {isCommandAvailable,syntaxFor} from "../engine/versionResolver";
+import {buildKnowledge} from "../data/agentKnowledge";
+import {isCommandAvailable,syntaxFor,versionAtLeast} from "../engine/versionResolver";
 
 type Provider="gemini"|"groq"|"openrouter"|"openai"|"anthropic";
 type Msg={id:number;role:"user"|"agent";text:string;command?:string;raw?:string};
@@ -37,7 +38,19 @@ function systemPrompt(version:string,lang:"en"|"fa"){
   const all=version==="All versions";
   const target=all?"any Java Edition version (the list shows when commands were added or removed)":version;
   const languageRule=lang==="fa"?"\n\nThe player is chatting in Persian (Farsi). Write your explanation sentences in Persian, but the command itself must stay in English exactly as Minecraft requires.":"";
-  return `You are a Minecraft Java Edition command expert. The player's game version is ${target}.\n\nThe list below is the authoritative list of commands that exist in this version, with their top-level syntax. Only use commands from this list. If the request needs a command that is not listed, say it does not exist in this version and suggest the closest listed alternative (for example /item replaced /replaceitem in 1.17, and /execute if replaced /testfor in 1.13). The list shows the current argument format; for deeper arguments, item or block ids, selectors, NBT and item components, use your own knowledge of how this version works (for example item components replaced NBT in 1.20.5) and stay careful.\n\nReply with exactly one command inside a fenced code block, then at most two short sentences of explanation. If the request is unclear, ask one short question instead. Never invent commands or arguments.${languageRule}\n\nCOMMANDS:\n${commandReference(version)}`;
+  return `You are a Minecraft Java Edition command expert. The player's game version is ${target}.\n\nThe list below is the authoritative list of commands that exist in this version, with their top-level syntax. Only use commands from this list. If the request needs a command that is not listed, say it does not exist in this version and suggest the closest listed alternative (for example /item replaced /replaceitem in 1.17, and /execute if replaced /testfor in 1.13).\n\nFor selectors, coordinates, item components vs NBT, enchant levels and version-era differences, follow the KNOWLEDGE section exactly — it reflects this version.\n\nReply with exactly one command inside a fenced code block, then at most two short sentences of explanation. Do not restate the request. If the request is unclear, ask one short question instead. Never invent commands or arguments.${languageRule}\n\nKNOWLEDGE:\n${buildKnowledge(version)}\n\nCOMMANDS:\n${commandReference(version)}`;
+}
+
+// Flags replies that drifted from the grounded command list or era syntax.
+function groundingNote(command:string|undefined,version:string):string{
+  if(!command)return "";
+  const name=command.replace(/^\//,"").split(/[\s\[]/)[0].split(":").pop()||"";
+  const known=agentCommands.find(c=>c.name===name);
+  if(!known)return "";
+  const vLabel=version==="All versions"?"that version":version;
+  if(!isCommandAvailable(known,version))return `\n\n⚠️ /${name} does not exist in ${vLabel}.`;
+  if(version!=="All versions"&&/^(give|item|clear)$/.test(name)&&/\[[^\]]*minecraft:[a-z_]+[=:{]/.test(command)&&!versionAtLeast(version,"1.20.5"))return `\n\n⚠️ Item components need 1.20.5+; in ${vLabel} this item is written with NBT braces {…}.`;
+  return "";
 }
 
 function parseReply(raw:string,fallback:string):{text:string;command?:string}{
@@ -62,7 +75,7 @@ async function callAI(provider:Provider,key:string,model:string,system:string,tu
     const res=await fetch(url,{
       method:"POST",
       headers:{"content-type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
-      body:JSON.stringify({model,max_tokens:700,system,messages:turns})
+      body:JSON.stringify({model,max_tokens:500,temperature:0.2,system,messages:turns})
     });
     const data=await res.json();
     if(!res.ok)throw new Error(data?.error?.message||`Request failed (${res.status})`);
@@ -72,7 +85,7 @@ async function callAI(provider:Provider,key:string,model:string,system:string,tu
   const res=await fetch(url,{
     method:"POST",
     headers:{"content-type":"application/json",authorization:`Bearer ${key}`},
-    body:JSON.stringify({model,messages:[{role:"system",content:system},...turns]})
+    body:JSON.stringify({model,temperature:0.2,max_tokens:500,messages:[{role:"system",content:system},...turns]})
   });
   const data=await res.json();
   if(!res.ok){
@@ -87,7 +100,9 @@ function Typed({text,animate}:{text:string;animate:boolean}){
   const [count,setCount]=useState(0);
   useEffect(()=>{
     if(!animate)return;
-    const id=window.setInterval(()=>setCount(v=>{if(v>=text.length){window.clearInterval(id);return v}return v+1}),14);
+    // Longer texts type proportionally faster so replies always land in about a second.
+    const speed=Math.min(18,Math.max(3,Math.round(1600/Math.max(text.length,1))));
+    const id=window.setInterval(()=>setCount(v=>{if(v>=text.length){window.clearInterval(id);return v}return v+1}),speed);
     return()=>window.clearInterval(id);
   },[text,animate]);
   if(!animate)return <>{text}</>;
@@ -145,7 +160,7 @@ export default function AICommandAgent({version,lang}:{version:string;lang:"en"|
       const reply=await callAI(provider,apiKey,model.trim()||providers[provider].model,systemPrompt(version,lang),toTurns(next));
       if(!reply.trim())throw new Error(t("ai.emptyReply"));
       const parsed=parseReply(reply,t("ai.here"));
-      setFreshId(push({role:"agent",text:parsed.text,command:parsed.command,raw:reply}));
+      setFreshId(push({role:"agent",text:parsed.text+groundingNote(parsed.command,version),command:parsed.command,raw:reply}));
     }catch(err){
       const message=err instanceof Error?err.message:"Request failed.";
       push({role:"agent",text:message==="Failed to fetch"?t("ai.networkFail"):message});
