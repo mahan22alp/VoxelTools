@@ -2,16 +2,22 @@ import {useEffect,useRef,useState} from "react";
 import "../agent.css";
 import SavedCommands from "./SavedCommands";
 
-type Provider="anthropic"|"openai";
+type Provider="gemini"|"groq"|"openrouter"|"openai"|"anthropic";
 type Msg={id:number;role:"user"|"agent";text:string;command?:string;raw?:string};
 type Turn={role:"user"|"assistant";content:string};
 
-const defaults:Record<Provider,string>={anthropic:"claude-sonnet-5-5",openai:"gpt-4o-mini"};
+const providers:Record<Provider,{label:string;url:string;model:string;keyPage:string}>={
+  gemini:{label:"Google Gemini (free tier)",url:"https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",model:"gemini-flash-latest",keyPage:"https://aistudio.google.com/apikey"},
+  groq:{label:"Groq (free tier)",url:"https://api.groq.com/openai/v1/chat/completions",model:"llama-3.3-70b-versatile",keyPage:"https://console.groq.com/keys"},
+  openrouter:{label:"OpenRouter (free models)",url:"https://openrouter.ai/api/v1/chat/completions",model:"meta-llama/llama-3.3-70b-instruct:free",keyPage:"https://openrouter.ai/keys"},
+  openai:{label:"OpenAI (paid)",url:"https://api.openai.com/v1/chat/completions",model:"gpt-4o-mini",keyPage:"https://platform.openai.com/api-keys"},
+  anthropic:{label:"Anthropic (paid)",url:"https://api.anthropic.com/v1/messages",model:"claude-sonnet-5-5",keyPage:"https://platform.claude.com/settings/keys"}
+};
 const examples=["set time to night","give me a sharpness 5 diamond sword","teleport me to 0 100 0"];
 
 function read(key:string,fallback:string){try{return localStorage.getItem(key)??fallback}catch{return fallback}}
 function write(key:string,value:string){try{localStorage.setItem(key,value)}catch{/* storage unavailable */}}
-function readProvider():Provider{return read("voxeltools-ai-provider","anthropic")==="openai"?"openai":"anthropic"}
+function readProvider():Provider{const value=read("voxeltools-ai-provider","gemini");return value in providers?(value as Provider):"gemini"}
 
 function systemPrompt(version:string){
   const target=version==="All versions"?"the latest release":version;
@@ -31,8 +37,9 @@ function toTurns(items:Msg[]):Turn[]{
 }
 
 async function callAI(provider:Provider,key:string,model:string,system:string,turns:Turn[]):Promise<string>{
+  const url=providers[provider].url;
   if(provider==="anthropic"){
-    const res=await fetch("https://api.anthropic.com/v1/messages",{
+    const res=await fetch(url,{
       method:"POST",
       headers:{"content-type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
       body:JSON.stringify({model,max_tokens:700,system,messages:turns})
@@ -41,13 +48,17 @@ async function callAI(provider:Provider,key:string,model:string,system:string,tu
     if(!res.ok)throw new Error(data?.error?.message||`Request failed (${res.status})`);
     return (data.content as {type:string;text?:string}[]).filter(b=>b.type==="text").map(b=>b.text||"").join("\n");
   }
-  const res=await fetch("https://api.openai.com/v1/chat/completions",{
+  // Gemini, Groq, OpenRouter and OpenAI all speak the OpenAI chat-completions format.
+  const res=await fetch(url,{
     method:"POST",
     headers:{"content-type":"application/json",authorization:`Bearer ${key}`},
     body:JSON.stringify({model,messages:[{role:"system",content:system},...turns]})
   });
   const data=await res.json();
-  if(!res.ok)throw new Error(data?.error?.message||`Request failed (${res.status})`);
+  if(!res.ok){
+    const detail=Array.isArray(data)?data[0]?.error?.message:data?.error?.message;
+    throw new Error(detail||`Request failed (${res.status})`);
+  }
   return String(data.choices?.[0]?.message?.content||"");
 }
 
@@ -55,7 +66,7 @@ export default function AICommandAgent({version}:{version:string}){
   const nextId=useRef(1);
   const endRef=useRef<HTMLDivElement|null>(null);
   const [provider,setProvider]=useState<Provider>(readProvider);
-  const [model,setModel]=useState(()=>read("voxeltools-ai-model","")||defaults[readProvider()]);
+  const [model,setModel]=useState(()=>read("voxeltools-ai-model","")||providers[readProvider()].model);
   const [apiKey,setApiKey]=useState(()=>read("voxeltools-ai-key",""));
   const [keyDraft,setKeyDraft]=useState("");
   const [showSettings,setShowSettings]=useState(()=>!read("voxeltools-ai-key",""));
@@ -72,11 +83,11 @@ export default function AICommandAgent({version}:{version:string}){
 
   const push=(item:Omit<Msg,"id">)=>setMessages(prev=>[...prev,{...item,id:nextId.current++}]);
 
-  const changeProvider=(next:Provider)=>{setProvider(next);setModel(defaults[next])};
+  const changeProvider=(next:Provider)=>{setProvider(next);setModel(providers[next].model)};
   const saveSettings=()=>{
     const key=keyDraft.trim()||apiKey;
     write("voxeltools-ai-provider",provider);
-    write("voxeltools-ai-model",model.trim()||defaults[provider]);
+    write("voxeltools-ai-model",model.trim()||providers[provider].model);
     write("voxeltools-ai-key",key);
     setApiKey(key);setKeyDraft("");
     if(key)setShowSettings(false);
@@ -90,7 +101,7 @@ export default function AICommandAgent({version}:{version:string}){
     const next=[...messages,userMsg];
     setMessages(next);setInput("");setBusy(true);
     try{
-      const reply=await callAI(provider,apiKey,model.trim()||defaults[provider],systemPrompt(version),toTurns(next));
+      const reply=await callAI(provider,apiKey,model.trim()||providers[provider].model,systemPrompt(version),toTurns(next));
       if(!reply.trim())throw new Error("The model returned an empty reply.");
       const parsed=parseReply(reply);
       push({role:"agent",text:parsed.text,command:parsed.command,raw:reply});
@@ -119,11 +130,12 @@ export default function AICommandAgent({version}:{version:string}){
     <div className="ai-chat">
       {showSettings&&<div className="ai-settings">
         <div className="ai-grid">
-          <label>Provider<select value={provider} onChange={e=>changeProvider(e.target.value as Provider)}><option value="anthropic">Anthropic</option><option value="openai">OpenAI</option></select></label>
-          <label>Model<input value={model} onChange={e=>setModel(e.target.value)} placeholder={defaults[provider]}/></label>
+          <label>Provider<select value={provider} onChange={e=>changeProvider(e.target.value as Provider)}>{(Object.keys(providers) as Provider[]).map(p=><option key={p} value={p}>{providers[p].label}</option>)}</select></label>
+          <label>Model<input value={model} onChange={e=>setModel(e.target.value)} placeholder={providers[provider].model}/></label>
         </div>
         <label>API key<input type="password" autoComplete="off" value={keyDraft} onChange={e=>setKeyDraft(e.target.value)} placeholder={apiKey?"Key saved. Paste a new key to replace it.":"Paste your API key"}/></label>
-        <small>Your key is stored only in this browser and sent only to the provider you pick. Never put it in the code or share it. Use a key with a spend limit.</small>
+        <small><a href={providers[provider].keyPage} target="_blank" rel="noreferrer">Get a {providers[provider].label.split(" (")[0]} key</a>. Free tiers have usage limits and may use your prompts to improve their models.</small>
+        <small>Your key is stored only in this browser and sent only to the provider you pick. Never put it in the code or share it.</small>
         <div className="ai-row"><button className="ai-primary" onClick={saveSettings}>Save settings</button>{apiKey&&<button className="ai-ghost" onClick={removeKey}>Remove key</button>}</div>
       </div>}
       <div className="ai-log" aria-live="polite">
