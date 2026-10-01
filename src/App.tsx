@@ -58,7 +58,6 @@ function App(){
  const [lang,setLang]=useState<Lang>(getInitialLang);
  useEffect(()=>{
    document.documentElement.lang=lang==="fa"?"fa":"en";
-   document.documentElement.dir=lang==="fa"?"rtl":"ltr";
    try{localStorage.setItem("voxeltools-lang",lang)}catch{}
  },[lang]);
  return <LangProvider lang={lang}><AppShell lang={lang} onToggleLang={()=>setLang(l=>l==="en"?"fa":"en")}/></LangProvider>;
@@ -247,10 +246,10 @@ function AppShell({lang,onToggleLang}:{lang:Lang;onToggleLang:()=>void}){
       </div>
     </section>
    </>:<section className="agent-page section-wrap">
-    <AICommandAgent version={version}/>
+    <AICommandAgent version={version} lang={lang}/>
    </section>}
    </main>
-   <footer className="site-footer"><div><b>Voxel<span>Tools</span></b><span dir={lang==="fa"?"rtl":"ltr"}>{t("footer.tag")}</span></div><div><span>{t("footer.local")}</span><span>{t("footer.focused")}</span></div></footer>
+   <footer className="site-footer"><div><b>Voxel<span>Tools</span></b><span>{t("footer.tag")}</span></div><div><span>{t("footer.local")}</span><span>{t("footer.focused")}</span></div></footer>
  </div>;
 }
 

@@ -19,7 +19,7 @@ const checks=[
   [app,'localStorage.setItem("voxeltools-saved"',"saved command persistence"],
   [app,'localStorage.setItem("voxeltools-version"',"version persistence"],
   [app,'localStorage.setItem("voxeltools-lang"',"language persistence"],
-  [app,'document.documentElement.dir=',"RTL direction switching"],
+  [app,'document.documentElement.lang=',"language switching"],
   [i18n,'"fa"',"Persian dictionary"],
   [css,".saved-panel","saved panel styles"],
   [css,".lang-fa","Persian/RTL styles"],

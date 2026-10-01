@@ -33,10 +33,11 @@ function commandReference(version:string){
   }).join("\n");
 }
 
-function systemPrompt(version:string){
+function systemPrompt(version:string,lang:"en"|"fa"){
   const all=version==="All versions";
   const target=all?"any Java Edition version (the list shows when commands were added or removed)":version;
-  return `You are a Minecraft Java Edition command expert. The player's game version is ${target}.\n\nThe list below is the authoritative list of commands that exist in this version, with their top-level syntax. Only use commands from this list. If the request needs a command that is not listed, say it does not exist in this version and suggest the closest listed alternative (for example /item replaced /replaceitem in 1.17, and /execute if replaced /testfor in 1.13). The list shows the current argument format; for deeper arguments, item or block ids, selectors, NBT and item components, use your own knowledge of how this version works (for example item components replaced NBT in 1.20.5) and stay careful.\n\nReply with exactly one command inside a fenced code block, then at most two short sentences of explanation. If the request is unclear, ask one short question instead. Never invent commands or arguments.\n\nCOMMANDS:\n${commandReference(version)}`;
+  const languageRule=lang==="fa"?"\n\nThe player is chatting in Persian (Farsi). Write your explanation sentences in Persian, but the command itself must stay in English exactly as Minecraft requires.":"";
+  return `You are a Minecraft Java Edition command expert. The player's game version is ${target}.\n\nThe list below is the authoritative list of commands that exist in this version, with their top-level syntax. Only use commands from this list. If the request needs a command that is not listed, say it does not exist in this version and suggest the closest listed alternative (for example /item replaced /replaceitem in 1.17, and /execute if replaced /testfor in 1.13). The list shows the current argument format; for deeper arguments, item or block ids, selectors, NBT and item components, use your own knowledge of how this version works (for example item components replaced NBT in 1.20.5) and stay careful.\n\nReply with exactly one command inside a fenced code block, then at most two short sentences of explanation. If the request is unclear, ask one short question instead. Never invent commands or arguments.${languageRule}\n\nCOMMANDS:\n${commandReference(version)}`;
 }
 
 function parseReply(raw:string,fallback:string):{text:string;command?:string}{
@@ -93,7 +94,7 @@ function Typed({text,animate}:{text:string;animate:boolean}){
   return <>{text.slice(0,count)}{count<text.length&&<span className="ai-caret"/>}</>;
 }
 
-export default function AICommandAgent({version}:{version:string}){
+export default function AICommandAgent({version,lang}:{version:string;lang:"en"|"fa"}){
   const {t}=useLang();
   const nextId=useRef(1);
   const endRef=useRef<HTMLDivElement|null>(null);
@@ -141,7 +142,7 @@ export default function AICommandAgent({version}:{version:string}){
     const next=[...messages,userMsg];
     setMessages(next);setInput("");setBusy(true);
     try{
-      const reply=await callAI(provider,apiKey,model.trim()||providers[provider].model,systemPrompt(version),toTurns(next));
+      const reply=await callAI(provider,apiKey,model.trim()||providers[provider].model,systemPrompt(version,lang),toTurns(next));
       if(!reply.trim())throw new Error(t("ai.emptyReply"));
       const parsed=parseReply(reply,t("ai.here"));
       setFreshId(push({role:"agent",text:parsed.text,command:parsed.command,raw:reply}));
@@ -183,7 +184,7 @@ export default function AICommandAgent({version}:{version:string}){
           const cmd=m.command;
           const animate=m.id===freshId&&!prefersReducedMotion();
           return <div key={m.id} className={`ai-msg ${m.role}`}>
-            <p><Typed text={m.text} animate={animate}/></p>
+            <p><Typed text={m.id===0?t("ai.welcome"):m.text} animate={animate}/></p>
             {cmd&&<>
               <code dir="ltr"><Typed text={cmd} animate={animate}/></code>
               <div className="ai-actions">

@@ -91,39 +91,20 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:none;box-s
  .reveal{opacity:1;transform:none}
 }
 
-/* Language: Persian (RTL) + fonts */
+/* Language: Persian (fonts + typography only, layout stays LTR) */
 .lang-fa,body:has(.lang-fa){font-family:"Vazirmatn","DM Sans",system-ui,sans-serif}
-[dir="rtl"] .brand-word,[dir="rtl"] .site-footer b{font-family:"DM Sans","Vazirmatn",system-ui,sans-serif}
+.lang-fa .brand-word,.lang-fa .site-footer b{font-family:"DM Sans","Vazirmatn",system-ui,sans-serif}
 .lang-fa .eyebrow,.lang-fa .section-eyebrow{letter-spacing:0;font-size:11px}
-.lang-fa .eyebrow b{font-size:10px;border-right:1px solid var(--line);border-left:0;padding-right:9px;padding-left:0}
+.lang-fa .eyebrow b{font-size:10px;border-left:1px solid var(--line);padding-left:9px}
 .lang-fa .hero h1{letter-spacing:-1.5px;line-height:1.18}
-.lang-fa .section-head h2,.lang-fa .showcase h2,.lang-fa .workflow-copy h2,.lang-fa .generator-top h2{letter-spacing:-1.2px;line-height:1.22}
+.lang-fa .section-head h2,.lang-fa .showcase h2,.lang-fa .workflow-copy h2,.lang-fa .generator-top h2,.lang-fa .ai-head h2{letter-spacing:-1.2px;line-height:1.22}
 .lang-fa .stats-strip span,.lang-fa .tool-index{font-family:"Vazirmatn",ui-monospace,monospace}
 .lang-fa .command-name>span,.lang-fa .command-name b,.lang-fa .command-syntax code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace}
 .lang-fa .library-header span{letter-spacing:0;font-size:9px}
-.lang-fa .context-badge,.lang-fa .library-total span,.lang-fa .workspace-heading span,.lang-fa .output-header span,.lang-fa .plan-title span,.lang-fa .tip-card span,.lang-fa .example-row>span,.lang-fa .builder-title span{letter-spacing:0;font-size:9px}
-.lang-fa .agent-plan li small,.lang-fa .agent-explain p{font-size:9px}
-.lang-fa .agent-run{min-width:74px}
-.lang-fa .output-code pre{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;direction:ltr;text-align:left}
-.lang-fa .natural-input input,.lang-fa .natural-line input{direction:rtl;text-align:right}
-.lang-fa .header-search input{direction:rtl;text-align:right}
-.lang-fa .search-field input{direction:rtl;text-align:right}
-.lang-fa .hero-proof{flex-direction:row-reverse}
-.lang-fa .site-footer{flex-direction:row-reverse}
-.lang-fa .output-actions{flex-direction:row}
-
-/* RTL logical flip for absolutely-positioned decorations */
-[dir="rtl"] .glass-command{left:auto;right:30px}
-[dir="rtl"] .glass-status{right:auto;left:26px}
-[dir="rtl"] .card-a{left:auto;right:28px}
-[dir="rtl"] .card-c{left:auto;right:78px}
-[dir="rtl"] .card-b{right:auto;left:28px}
-[dir="rtl"] .workflow-core{left:auto;right:50%;transform:translate(50%,-50%)}
-[dir="rtl"] .hero-core{right:auto;left:140px}
-[dir="rtl"] .hero-core-shine{right:auto;left:214px}
-[dir="rtl"] .hero-halo{right:auto;left:65px}
-[dir="rtl"] .orbit-one{right:auto;left:45px}
-[dir="rtl"] .orbit-two{right:auto;left:19px}
+.lang-fa .context-badge,.lang-fa .library-total span,.lang-fa .workspace-heading span,.lang-fa .output-header span,.lang-fa .tip-card span,.lang-fa .builder-title span{letter-spacing:0;font-size:9px}
+.lang-fa .ai-msg{letter-spacing:0}
+.lang-fa .ai-msg code{direction:ltr;text-align:left}
+.lang-fa .ai-settings input,.lang-fa .ai-settings select{direction:ltr;text-align:left}
 
 
 /* Theme controls */
@@ -221,8 +202,3 @@ html[data-theme="dark"]{color-scheme:dark;background:#0d0f14}
 .theme-dark .glass-status small{color:#8d94a3}
 .theme-dark .hero-orbit{border-color:rgba(145,135,242,.24)}
 .theme-dark .hero-grid{background-image:linear-gradient(rgba(145,135,242,.065) 1px,transparent 1px),linear-gradient(90deg,rgba(145,135,242,.065) 1px,transparent 1px)}
-
-/* Language: Persian (RTL) extras for the AI agent */
-.lang-fa .ai-head h2,.lang-fa .ai-msg,.lang-fa .ai-compose input,.lang-fa .ai-settings label{letter-spacing:0}
-.lang-fa .ai-head h2{line-height:1.22}
-.lang-fa .ai-msg code,.lang-fa .ai-compose input{font-family:ui-monospace,SFMono-Regular,Consolas,monospace}
