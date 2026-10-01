@@ -1,4 +1,5 @@
 import {useEffect,useRef,useState} from "react";
+import type {ClipboardEvent,KeyboardEvent} from "react";
 import "../agent.css";
 import SavedCommands from "./SavedCommands";
 
@@ -95,21 +96,28 @@ export default function AICommandAgent({version}:{version:string}){
     try{const parsed=JSON.parse(read("voxeltools-agent-saved","[]"));return Array.isArray(parsed)?parsed.filter((x):x is string=>typeof x==="string").slice(0,20):[]}
     catch{return []}
   });
-  const [messages,setMessages]=useState<Msg[]>([{id:0,role:"agent",text:"Describe what you want in plain words and I will write the command. Add your API key in Settings first."}]);
+  const [messages,setMessages]=useState<Msg[]>([{id:0,role:"agent",text:"Describe what you want in plain words and I will write the command. Paste your API key in Settings first."}]);
 
   useEffect(()=>{endRef.current?.scrollIntoView({block:"nearest"})},[messages,busy]);
+  // Provider and model are saved as soon as they change.
+  useEffect(()=>{write("voxeltools-ai-provider",provider);write("voxeltools-ai-model",model.trim()||providers[provider].model)},[provider,model]);
 
   const push=(item:Omit<Msg,"id">)=>{const id=nextId.current++;setMessages(prev=>[...prev,{...item,id}]);return id};
 
   const changeProvider=(next:Provider)=>{setProvider(next);setModel(providers[next].model)};
-  const saveSettings=()=>{
-    const key=keyDraft.trim()||apiKey;
-    write("voxeltools-ai-provider",provider);
-    write("voxeltools-ai-model",model.trim()||providers[provider].model);
+
+  // Saves the key right away (on paste, Enter, leaving the field, or the Save key button).
+  const commitKey=(value:string)=>{
+    const key=value.trim();
+    if(!key){if(apiKey)setShowSettings(false);return}
+    if(key.length<8)return;
     write("voxeltools-ai-key",key);
-    setApiKey(key);setKeyDraft("");
-    if(key)setShowSettings(false);
+    const stored=read("voxeltools-ai-key","")===key;
+    setApiKey(key);setKeyDraft("");setShowSettings(false);
+    push({role:"agent",text:stored?"Key saved in this browser. You can start chatting now.":"Key accepted, but your browser blocked storage, so it will be forgotten when you close this tab."});
   };
+  const onKeyPaste=(e:ClipboardEvent<HTMLInputElement>)=>{e.preventDefault();commitKey(e.clipboardData.getData("text"))};
+  const onKeyEnter=(e:KeyboardEvent<HTMLInputElement>)=>{if(e.key==="Enter"){e.preventDefault();commitKey(keyDraft)}};
   const removeKey=()=>{write("voxeltools-ai-key","");setApiKey("");setKeyDraft("");setShowSettings(true)};
 
   const ask=async(prompt:string,shown=prompt)=>{
@@ -151,10 +159,10 @@ export default function AICommandAgent({version}:{version:string}){
           <label>Provider<select value={provider} onChange={e=>changeProvider(e.target.value as Provider)}>{(Object.keys(providers) as Provider[]).map(p=><option key={p} value={p}>{providers[p].label}</option>)}</select></label>
           <label>Model<input value={model} onChange={e=>setModel(e.target.value)} placeholder={providers[provider].model}/></label>
         </div>
-        <label>API key<input type="password" autoComplete="off" value={keyDraft} onChange={e=>setKeyDraft(e.target.value)} placeholder={apiKey?"Key saved. Paste a new key to replace it.":"Paste your API key"}/></label>
+        <label>API key<input type="password" autoComplete="off" value={keyDraft} onChange={e=>setKeyDraft(e.target.value)} onPaste={onKeyPaste} onKeyDown={onKeyEnter} onBlur={()=>{if(keyDraft.trim())commitKey(keyDraft)}} placeholder={apiKey?"Key saved. Paste a new key to replace it.":"Paste your API key here. It saves automatically."}/></label>
         <small><a href={providers[provider].keyPage} target="_blank" rel="noreferrer">Get a {providers[provider].label.split(" (")[0]} key</a>. Free tiers have usage limits and may use your prompts to improve their models.</small>
         <small>Your key is stored only in this browser and sent only to the provider you pick. Never put it in the code or share it.</small>
-        <div className="ai-row"><button className="ai-primary" onClick={saveSettings}>Save settings</button>{apiKey&&<button className="ai-ghost" onClick={removeKey}>Remove key</button>}</div>
+        <div className="ai-row"><button className="ai-primary" onClick={()=>commitKey(keyDraft)}>Save key</button>{apiKey&&<button className="ai-ghost" onClick={removeKey}>Remove key</button>}</div>
       </div>}
       <div className="ai-log" aria-live="polite">
         {messages.map(m=>{
@@ -178,7 +186,7 @@ export default function AICommandAgent({version}:{version:string}){
       </div>
       <div className="ai-examples">{examples.map(t=><button key={t} disabled={busy||!apiKey} onClick={()=>ask(t)}>{t}</button>)}</div>
       <form className="ai-compose" onSubmit={e=>{e.preventDefault();ask(input)}}>
-        <input aria-label="Describe your command" disabled={!apiKey} value={input} onChange={e=>setInput(e.target.value)} placeholder={apiKey?"Describe your command...":"Add your API key in Settings to start"}/>
+        <input aria-label="Describe your command" disabled={!apiKey} value={input} onChange={e=>setInput(e.target.value)} placeholder={apiKey?"Describe your command...":"Paste your API key in Settings to start"}/>
         <button type="submit" disabled={busy||!apiKey}>Send</button>
       </form>
     </div>
