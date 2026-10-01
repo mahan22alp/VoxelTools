@@ -54,7 +54,9 @@ function groundingNote(command:string|undefined,version:string):string{
 }
 
 function parseReply(raw:string,fallback:string):{text:string;command?:string}{
-  const reply=raw.replace(/<think>[\s\S]*?<\/think>/g,"").trim();
+  let reply=raw.replace(/<think>[\s\S]*?<\/think>/g,"").trim();
+  // Reasoning models sometimes emit everything inside <think>; fall back to searching the raw text.
+  if(!reply)reply=raw.trim();
   const match=reply.match(/```[\w-]*\n?([\s\S]*?)```/);
   if(match)return {text:reply.replace(match[0],"").trim()||fallback,command:match[1].trim()};
   // Some free models skip the code block, so fall back to the first line that starts with a slash.
@@ -75,7 +77,7 @@ async function callAI(provider:Provider,key:string,model:string,system:string,tu
     const res=await fetch(url,{
       method:"POST",
       headers:{"content-type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
-      body:JSON.stringify({model,max_tokens:500,temperature:0.2,system,messages:turns})
+      body:JSON.stringify({model,max_tokens:1024,temperature:0.2,system,messages:turns})
     });
     const data=await res.json();
     if(!res.ok)throw new Error(data?.error?.message||`Request failed (${res.status})`);
@@ -85,14 +87,20 @@ async function callAI(provider:Provider,key:string,model:string,system:string,tu
   const res=await fetch(url,{
     method:"POST",
     headers:{"content-type":"application/json",authorization:`Bearer ${key}`},
-    body:JSON.stringify({model,temperature:0.2,max_tokens:500,messages:[{role:"system",content:system},...turns]})
+    body:JSON.stringify({model,temperature:0.2,max_tokens:1024,messages:[{role:"system",content:system},...turns]})
   });
   const data=await res.json();
   if(!res.ok){
     const detail=Array.isArray(data)?data[0]?.error?.message:data?.error?.message;
     throw new Error(detail||`Request failed (${res.status})`);
   }
-  return String(data.choices?.[0]?.message?.content||"");
+  const choiceError=(data.choices?.[0] as {error?:{message?:string}}|undefined)?.error?.message;
+  if(choiceError)throw new Error(choiceError);
+  const msg=data.choices?.[0]?.message as {content?:string;reasoning?:string;reasoning_content?:string}|undefined;
+  const content=String(msg?.content||"").trim();
+  if(content)return content;
+  // Reasoning models can burn every token thinking and return empty content; try their reasoning text.
+  return String(msg?.reasoning||msg?.reasoning_content||"");
 }
 
 // Reveals text one character at a time while animate is true, then shows it in full.
@@ -157,7 +165,10 @@ export default function AICommandAgent({version,lang}:{version:string;lang:"en"|
     const next=[...messages,userMsg];
     setMessages(next);setInput("");setBusy(true);
     try{
-      const reply=await callAI(provider,apiKey,model.trim()||providers[provider].model,systemPrompt(version,lang),toTurns(next));
+      const send=()=>callAI(provider,apiKey,model.trim()||providers[provider].model,systemPrompt(version,lang),toTurns(next));
+      let reply=await send();
+      // Free routers intermittently return empty replies; retry once before giving up.
+      if(!reply.trim())reply=await send();
       if(!reply.trim())throw new Error(t("ai.emptyReply"));
       const parsed=parseReply(reply,t("ai.here"));
       setFreshId(push({role:"agent",text:parsed.text+groundingNote(parsed.command,version),command:parsed.command,raw:reply}));
