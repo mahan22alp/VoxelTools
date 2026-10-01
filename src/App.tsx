@@ -4,26 +4,33 @@ import {minecraftCommands} from "./data/commands";
 import {versionOptions} from "./data/versions";
 import {isCommandAvailable,syntaxFor} from "./engine/versionResolver";
 import {naturalCommand} from "./engine/commandGenerator";
+import {generateToolCommand} from "./engine/toolGenerator";
 import GlobalSearch from "./components/GlobalSearch";
+import SavedCommands from "./components/SavedCommands";
 import AICommandAgent from "./components/AICommandAgent";
 import VersionSelector from "./components/VersionSelector";
 import LanguageToggle from "./components/LanguageToggle";
 import {LangProvider,useLang} from "./components/LangContext";
 import type {Lang} from "./i18n";
 
-type Page="home"|"agent";
+type Page="home"|"generator"|"agent";
 type Theme="light"|"dark";
-type Tool={id:string;icon:string;seed:string};
+type Tool={id:string;name:string;icon:string;desc:string};
 
 const tools:Tool[]=[
- {id:"command",icon:"⌘",seed:"set time to night"},
- {id:"give",icon:"＋",seed:"give me 3 golden apple"},
- {id:"summon",icon:"✦",seed:"summon iron_golem"},
- {id:"enchant",icon:"◇",seed:"enchant @p sharpness 4"},
- {id:"effect",icon:"◌",seed:"effect @p speed 30 1"},
- {id:"fill",icon:"▦",seed:"fill 0 60 0 10 64 10 stone"},
- {id:"teleport",icon:"↗",seed:"tp @p 100 64 200"}
+ {id:"command",name:"Smart command",icon:"⌘",desc:"Describe the result you need and get syntax instantly."},
+ {id:"give",name:"Give builder",icon:"＋",desc:"Build a clean item command with guided fields."},
+ {id:"summon",name:"Summon builder",icon:"✦",desc:"Configure an entity and its position."},
+ {id:"enchant",name:"Enchant builder",icon:"◇",desc:"Tune an enchantment with clear controls."},
+ {id:"effect",name:"Effect builder",icon:"◌",desc:"Set effect, duration, and amplifier values."},
+ {id:"fill",name:"Fill builder",icon:"▦",desc:"Create precise region fill commands."},
+ {id:"teleport",name:"Teleport builder",icon:"↗",desc:"Build coordinate-based movement commands."}
 ];
+
+const mobs=["zombie","skeleton","creeper","spider","enderman","warden","iron_golem"];
+const items=["diamond","emerald","gold_ingot","iron_ingot","elytra","golden_apple"];
+const enchants=["sharpness","protection","efficiency","unbreaking","fortune","mending","fire_aspect","looting"];
+const effects=["speed","strength","haste","regeneration","resistance","fire_resistance","night_vision","jump_boost"];
 
 function safeRead(key:string,fallback:string){try{return localStorage.getItem(key)||fallback}catch{return fallback}}
 function getInitialTheme():Theme{
@@ -60,8 +67,9 @@ function App(){
 function AppShell({lang,onToggleLang}:{lang:Lang;onToggleLang:()=>void}){
  const {t}=useLang();
  const searchRef=useRef<HTMLInputElement|null>(null);
- const [page,setPage]=useState<Page>(()=>safeRead("voxeltools-page","home")==="agent"?"agent":"home");
+ const [page,setPage]=useState<Page>(()=>{const stored=safeRead("voxeltools-page","home");return stored==="agent"||stored==="generator"?stored:"home"});
  const [theme,setTheme]=useState<Theme>(getInitialTheme);
+ const [tool,setTool]=useState("command");
  const [query,setQuery]=useState("");
  const [version,setVersion]=useState(()=>{const stored=safeRead("voxeltools-version","1.21.11");return versionOptions.includes(stored)?stored:"1.21.11"});
  const [commandQuery,setCommandQuery]=useState("");
@@ -69,15 +77,25 @@ function AppShell({lang,onToggleLang}:{lang:Lang;onToggleLang:()=>void}){
  const [saved,setSaved]=useState<string[]>(()=>{try{const parsed=JSON.parse(localStorage.getItem("voxeltools-saved")||"[]");return Array.isArray(parsed)?parsed.filter((x):x is string=>typeof x==="string").slice(0,20):[]}catch{return []}});
  const [copied,setCopied]=useState("");
  const [copyError,setCopyError]=useState(false);
+ const [generating,setGenerating]=useState(false);
  const [scrollProgress,setScrollProgress]=useState(0);
  const [mouse,setMouse]=useState({x:50,y:40});
- const [agentSeed,setAgentSeed]=useState("");
+ const [form,setForm]=useState<Record<string,string>>({
+  player:"@p",item:"diamond",count:"1",mob:"zombie",enchant:"sharpness",level:"4",
+  effect:"speed",duration:"30",amplifier:"1",x:"~",y:"~",z:"~",x1:"~",y1:"~",z1:"~",
+  x2:"~",y2:"~",z2:"~",block:"stone",components:""
+ });
+ const [naturalInput,setNaturalInput]=useState("set time to night");
+ const [generated,setGenerated]=useState("/time set night");
 
+ useEffect(()=>{localStorage.setItem("voxeltools-page",page)},[page]);
  useEffect(()=>{
    document.documentElement.dataset.theme=theme;
    localStorage.setItem("voxeltools-theme",theme);
  },[theme]);
  useEffect(()=>{localStorage.setItem("voxeltools-version",version)},[version]);
+ useEffect(()=>{const timer=window.setTimeout(()=>setGenerated(naturalCommand(naturalInput,version)),110);setGenerating(true);return()=>window.clearTimeout(timer)},[naturalInput,version]);
+ useEffect(()=>{const timer=window.setTimeout(()=>setGenerating(false),125);return()=>window.clearTimeout(timer)},[generated]);
  useEffect(()=>{
    const onScroll=()=>{const max=document.documentElement.scrollHeight-window.innerHeight;setScrollProgress(max>0?(window.scrollY/max)*100:0)};
    onScroll();window.addEventListener("scroll",onScroll,{passive:true});return()=>window.removeEventListener("scroll",onScroll);
@@ -101,22 +119,34 @@ function AppShell({lang,onToggleLang}:{lang:Lang;onToggleLang:()=>void}){
    const hay=(c.name+" "+syntaxFor(c,version)+" "+c.desc).toLowerCase();
    return (category==="All"||c.category===category)&&isCommandAvailable(c,version)&&hay.includes(commandQuery.trim().toLowerCase());
  }),[category,commandQuery,version]);
- const heroPreview=useMemo(()=>naturalCommand(query.trim()===""?"set time to night":query,version),[query,version]);
 
- const num=(n:number)=>lang==="fa"?String(n).replace(/\d/g,d=>"۰۱۲۳۴۵۶۷۸۹"[Number(d)]):String(n);
- const versionLabel=version==="All versions"?t("hero.allReleases"):(lang==="fa"?"جاوا ":"Java ")+version;
- const versionBadge=version==="All versions"?t("hero.allReleases"):(lang==="fa"?"جاوا ":"JAVA ")+version;
- const nextTheme=t("theme."+(theme==="light"?"toDark":"toLight"));
-
+ const set=(key:string,value:string)=>setForm(prev=>({...prev,[key]:value}));
+ const command=useMemo(()=>tool==="command"?generated:generateToolCommand(tool,form,version),[tool,form,generated,version]);
  const switchPage=(next:Page)=>{setPage(next);window.scrollTo({top:0,behavior:"smooth"})};
  const openCommands=()=>{switchPage("home");window.setTimeout(()=>document.getElementById("commands")?.scrollIntoView({behavior:"smooth",block:"start"}),120)};
- const openAgent=(seed?:string)=>{if(seed!==undefined)setAgentSeed(seed);switchPage("agent")};
  const copyText=async(value:string,key:string)=>{
    try{if(!navigator.clipboard)throw new Error("Clipboard unavailable");await navigator.clipboard.writeText(value);setCopied(key);setCopyError(false);window.setTimeout(()=>setCopied(""),1500)}
    catch{setCopyError(true);setCopied("");window.setTimeout(()=>setCopyError(false),1600)}
  };
- const saveCommand=(value:string)=>{const next=[...new Set([value,...saved])].slice(0,20);setSaved(next);localStorage.setItem("voxeltools-saved",JSON.stringify(next));};
+ const save=()=>{const next=[...new Set([command,...saved])].slice(0,20);setSaved(next);localStorage.setItem("voxeltools-saved",JSON.stringify(next));};
  const removeSaved=(item:string)=>{const next=saved.filter(x=>x!==item);setSaved(next);localStorage.setItem("voxeltools-saved",JSON.stringify(next));};
+
+ const num=(n:number)=>lang==="fa"?String(n).replace(/\d/g,d=>"۰۱۲۳۴۵۶۷۸۹"[Number(d)]):String(n);
+ const faVersion=version==="All versions"?t("hero.allReleases"):t("field.z").slice(0,0)+ (lang==="fa"?"جاوا ":"Java ")+version;
+ const versionLabel=version==="All versions"?t("hero.allReleases"):version;
+ const heroVersionLabel=lang==="fa"?faVersion:versionLabel;
+ const nextTheme=t("theme."+(theme==="light"?"toDark":"toLight"));
+
+ const field=(label:string,key:string,opts?:string[])=><label className="field"><span>{label}</span>{opts?<select value={form[key]||opts[0]} onChange={e=>set(key,e.target.value)}>{opts.map(o=><option key={o}>{o}</option>)}</select>:<input value={form[key]||""} onChange={e=>set(key,e.target.value)}/>}</label>;
+ const editor=()=>{
+   if(tool==="give")return <div className="field-grid">{field(t("field.player"),"player")}{field(t("field.item"),"item",items)}{field(t("field.count"),"count")}<label className="field wide"><span>{t("field.components")}</span><input value={form.components||""} onChange={e=>set("components",e.target.value)} placeholder={t("field.componentsPh")}/></label></div>;
+   if(tool==="summon")return <div className="field-grid">{field(t("field.mob"),"mob",mobs)}{field(t("field.x"),"x")}{field(t("field.y"),"y")}{field(t("field.z"),"z")}</div>;
+   if(tool==="enchant")return <div className="field-grid">{field(t("field.player"),"player")}{field(t("field.enchant"),"enchant",enchants)}{field(t("field.level"),"level")}</div>;
+   if(tool==="effect")return <div className="field-grid">{field(t("field.player"),"player")}{field(t("field.effect"),"effect",effects)}{field(t("field.duration"),"duration")}{field(t("field.amplifier"),"amplifier")}</div>;
+   if(tool==="fill")return <div className="field-grid">{field(t("field.fromX"),"x1")}{field(t("field.fromY"),"y1")}{field(t("field.fromZ"),"z1")}{field(t("field.toX"),"x2")}{field(t("field.toY"),"y2")}{field(t("field.toZ"),"z2")}{field(t("field.block"),"block")}</div>;
+   if(tool==="teleport")return <div className="field-grid">{field(t("field.player"),"player")}{field(t("field.x"),"x")}{field(t("field.y"),"y")}{field(t("field.z"),"z")}</div>;
+   return <div className="natural-editor"><span className="input-caption">{t("gen.describeResult")}</span><div className="natural-line"><span><Icon name="spark"/></span><input aria-label={t("ai.composeAria")} value={naturalInput} onChange={e=>setNaturalInput(e.target.value)} placeholder={t("gen.tryPlaceholder")}/><kbd>{t("gen.live")}</kbd></div><p className="hint"><span><Icon name="check"/></span> {t("gen.generatedFor",{v:heroVersionLabel})}</p></div>;
+ };
 
  return <div className={`app theme-${theme}${lang==="fa"?" lang-fa":""}`} data-theme={theme}>
    <div className="ambient ambient-one"></div><div className="ambient ambient-two"></div>
@@ -128,6 +158,7 @@ function AppShell({lang,onToggleLang}:{lang:Lang;onToggleLang:()=>void}){
        <GlobalSearch ref={searchRef} value={query} onChange={value=>{setQuery(value);setCommandQuery(value)}} onEnter={openCommands}/>
        <nav className="main-nav" aria-label="Primary navigation">
          <button className={page==="home"?"nav active":"nav"} onClick={()=>switchPage("home")}>{t("nav.home")}</button>
+         <button className={page==="generator"?"nav active":"nav"} onClick={()=>switchPage("generator")}>{t("nav.generator")}</button>
          <button className={page==="agent"?"nav active":"nav"} onClick={()=>switchPage("agent")}>{t("nav.agent")}</button>
          <button className="nav" onClick={openCommands}>{t("nav.commands")}</button>
        </nav>
@@ -146,12 +177,12 @@ function AppShell({lang,onToggleLang}:{lang:Lang;onToggleLang:()=>void}){
         <div className="eyebrow"><span></span>{t("hero.eyebrow")} <b>{t("hero.eyebrowTag")}</b></div>
         <h1>{t("hero.title1")}<br/><em>{t("hero.title2")}</em></h1>
         <p>{t("hero.sub")}</p>
-        <div className="hero-actions"><button className="primary-action" onClick={()=>openAgent()}>{t("hero.cta1")} <Icon name="arrow"/></button><button className="secondary-action" onClick={openCommands}>{t("hero.cta2")}</button></div>
-        <div className="hero-proof"><span><Icon name="check"/></span><div><b>{t("hero.proof1Title")}</b><small>{t("hero.proof1Sub")}</small></div><i></i><div><b>{t("hero.proof2Title")}</b><small>{versionLabel==="All versions"||version==="All versions"?t("hero.allReleases"):versionLabel} {t("hero.proof2Sub")}</small></div></div>
+        <div className="hero-actions"><button className="primary-action" onClick={()=>switchPage("generator")}>{t("hero.cta1")} <Icon name="arrow"/></button><button className="secondary-action" onClick={openCommands}>{t("hero.cta2")}</button></div>
+        <div className="hero-proof"><span><Icon name="check"/></span><div><b>{t("hero.proof1Title")}</b><small>{t("hero.proof1Sub")}</small></div><i></i><div><b>{t("hero.proof2Title")}</b><small>{heroVersionLabel} {t("hero.proof2Sub")}</small></div></div>
       </div>
       <div className="hero-visual reveal in-view" style={{"--mx":`${mouse.x}%`,"--my":`${mouse.y}%`} as CSSProperties}>
         <div className="hero-surface"></div><div className="hero-halo"></div><div className="hero-orbit orbit-one"></div><div className="hero-orbit orbit-two"></div><div className="hero-core"></div><div className="hero-core-shine"></div>
-        <div className="glass-command"><span>{t("hero.preview")}</span><b dir="ltr">{heroPreview}</b><small>{version==="All versions"?t("hero.multiple"):version}</small></div>
+        <div className="glass-command"><span>{t("hero.preview")}</span><b dir="ltr">{generated}</b><small>{version==="All versions"?t("hero.multiple"):version}</small></div>
         <div className="glass-status"><span></span><div><b>{t("hero.ready")}</b><small>{t("hero.generated")}</small></div></div>
         <div className="hero-grid"></div>
       </div>
@@ -179,17 +210,44 @@ function AppShell({lang,onToggleLang}:{lang:Lang;onToggleLang:()=>void}){
 
     <section className="showcase section-wrap reveal">
       <div className="section-head compact"><div><span className="section-eyebrow">{t("tools.eyebrow")}</span><h2>{t("tools.title1")}<br/><em>{t("tools.title2")}</em></h2></div><p>{t("tools.sub")}</p></div>
-      <div className="tool-grid">{tools.map((item,index)=><button className="tool-card" key={item.id} onClick={()=>openAgent(item.seed)}><span className="tool-index" dir="ltr">{String(index+1).padStart(2,"0")}</span><span className="tool-icon">{item.icon}</span><div><b>{t(`tool.${item.id}.name`)}</b><small>{t(`tool.${item.id}.desc`)}</small></div><span className="tool-arrow">↗</span></button>)}</div>
+      <div className="tool-grid">{tools.map((item,index)=><button className="tool-card" key={item.id} onClick={()=>{setTool(item.id);switchPage("generator")}}><span className="tool-index" dir="ltr">{String(index+1).padStart(2,"0")}</span><span className="tool-icon">{item.icon}</span><div><b>{t(`tool.${item.id}.name`)}</b><small>{t(`tool.${item.id}.desc`)}</small></div><span className="tool-arrow">↗</span></button>)}</div>
     </section>
 
     <section className="workflow section-wrap reveal">
       <div className="workflow-art"><div className="workflow-grid"></div><div className="workflow-card card-a"><span>01</span><b>{t("flow.step1")}</b><small>{t("flow.step1Sub")}</small></div><div className="workflow-card card-b"><span>02</span><b>{t("flow.step2")}</b><small>{t("flow.step2Sub")}</small></div><div className="workflow-card card-c"><span>03</span><b>{t("flow.step3")}</b><small>{t("flow.step3Sub")}</small></div><div className="workflow-core"><Icon name="spark"/></div></div>
-      <div className="workflow-copy"><span className="section-eyebrow">{t("flow.eyebrow")}</span><h2>{t("flow.title1")}<br/><em>{t("flow.title2")}</em></h2><p>{t("flow.sub")}</p><button className="text-link" onClick={()=>openAgent()}>{t("flow.cta")} <Icon name="arrow"/></button></div>
+      <div className="workflow-copy"><span className="section-eyebrow">{t("flow.eyebrow")}</span><h2>{t("flow.title1")}<br/><em>{t("flow.title2")}</em></h2><p>{t("flow.sub")}</p><button className="text-link" onClick={()=>switchPage("generator")}>{t("flow.cta")} <Icon name="arrow"/></button></div>
     </section>
 
-    <section className="cta section-wrap reveal"><div><div><span className="section-eyebrow light">{t("cta.eyebrow")}</span><h2>{t("cta.title1")}<br/><em>{t("cta.title2")}</em></h2></div><button onClick={()=>openAgent()}>{t("cta.button")} <Icon name="arrow"/></button></div></section>
-   </>:<section className="generator-page section-wrap">
-    <AICommandAgent key={agentSeed} seed={agentSeed} version={version} saved={saved} onCopy={copyText} onSave={saveCommand} onRemoveSaved={removeSaved}/>
+    <section className="cta section-wrap reveal"><div><div><span className="section-eyebrow light">{t("cta.eyebrow")}</span><h2>{t("cta.title1")}<br/><em>{t("cta.title2")}</em></h2></div><button onClick={()=>switchPage("generator")}>{t("cta.button")} <Icon name="arrow"/></button></div></section>
+   </>:page==="generator"?<>
+    <section className="generator-page section-wrap">
+      <div className="generator-top">
+        <div><span className="section-eyebrow">{t("gen.eyebrow")}</span><h2>{t("gen.title1")}<br/><em>{t("gen.title2")}</em></h2><p>{t("gen.sub")}</p></div>
+        <div className="generator-context"><span className="context-badge"><i></i>{version}</span></div>
+      </div>
+      <div className="generator-workspace">
+        <div className="generator-panel">
+          <div className="workspace-heading"><div><span>{t("gen.builder")}</span><b>{t(`tool.${tool}.name`)}</b></div></div>
+          <div className="builder-zone">
+            <div className="builder-title"><span>{t("gen.chooseTool")}</span></div>
+            <div className="builder-tabs">{tools.map(t2=><button key={t2.id} className={tool===t2.id?"tool-chip active":"tool-chip"} onClick={()=>setTool(t2.id)}><span>{t2.icon}</span>{t(`tool.${t2.id}.name`)}</button>)}</div>
+            <div className="form-card">{editor()}</div>
+          </div>
+        </div>
+        <aside className="output-panel">
+          <div className="output-header"><div><span>{t("gen.output")}</span><b>{t("gen.command")}</b></div><strong>{version}</strong></div>
+          <div className="output-code">{generating&&tool==="command"?<div className="shimmer"><span/><span/></div>:<pre dir="ltr">{command}</pre>}</div>
+          <div className="output-actions"><button className="copy-btn" onClick={()=>copyText(command,"output")}>{copied==="output"?t("gen.copied"):t("gen.copyCommand")}</button><button className="save-btn" onClick={save}>{t("gen.save")}</button></div>
+          <div className="output-state"><span className={copyError?"state-dot error":"state-dot"}></span>{copyError?t("gen.copyFailed"):t("gen.generatedLocally")}</div>
+        </aside>
+      </div>
+      <div className="generator-lower">
+        <div className="tip-card"><span>{t("gen.tip")}</span><b>{t("gen.tipTitle")}</b><small>{t("gen.tipBody")}</small></div>
+        <SavedCommands items={saved} onRemove={removeSaved} onCopy={value=>copyText(value,`saved-${value}`)}/>
+      </div>
+    </section>
+   </>:<section className="agent-page section-wrap">
+    <AICommandAgent version={version}/>
    </section>}
    </main>
    <footer className="site-footer"><div><b>Voxel<span>Tools</span></b><span dir={lang==="fa"?"rtl":"ltr"}>{t("footer.tag")}</span></div><div><span>{t("footer.local")}</span><span>{t("footer.focused")}</span></div></footer>

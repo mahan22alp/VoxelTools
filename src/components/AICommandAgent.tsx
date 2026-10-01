@@ -1,146 +1,209 @@
-import {useMemo,useState} from "react";
-import {minecraftCommands} from "../data/commands";
-import {syntaxFor} from "../engine/versionResolver";
-import {naturalCommand} from "../engine/commandGenerator";
+import {useEffect,useRef,useState} from "react";
+import type {ClipboardEvent,KeyboardEvent} from "react";
+import "../agent.css";
 import SavedCommands from "./SavedCommands";
 import {useLang} from "./LangContext";
-import {isFa} from "../i18n";
+import {agentCommands} from "../data/agentCommands";
+import {isCommandAvailable,syntaxFor} from "../engine/versionResolver";
 
-type Props={seed:string;version:string;saved:string[];onCopy:(value:string,key:string)=>void|Promise<void>;onSave:(command:string)=>void;onRemoveSaved:(command:string)=>void};
-type Intent={id:string;label:string;test:RegExp};
-type Step={label:string;detail:string};
-type Plan={intent:Intent;command:string;steps:Step[];unavailable:boolean;name:string;definition?:typeof minecraftCommands[number]};
+type Provider="gemini"|"groq"|"openrouter"|"openai"|"anthropic";
+type Msg={id:number;role:"user"|"agent";text:string;command?:string;raw?:string};
+type Turn={role:"user"|"assistant";content:string};
 
-const INTENTS:Intent[]=[
- {id:"time",label:"time",test:/\btime\b/},
- {id:"weather",label:"weather",test:/\bweather\b|\brain\b|\bthunder\b|\bstorm\b/},
- {id:"gamemode",label:"gamemode",test:/\bgamemode\b|\bgame mode\b|\bcreative\b|\bsurvival\b|\badventure\b|\bspectator\b/},
- {id:"give",label:"give",test:/\bgive\b|\bget me\b|\bitem\b|\bapple\b|\bsword\b|\bpickaxe\b|\bdiamond\b|\belytra\b|\bemerald\b|\bingot\b/},
- {id:"summon",label:"summon",test:/\bsummon\b|\bspawn\b/},
- {id:"teleport",label:"teleport",test:/\btp\b|\bteleport\b|\bwarp\b/},
- {id:"kill",label:"kill",test:/\bkill\b|\bslay\b/},
- {id:"effect",label:"effect",test:/\beffect\b|\bpotion\b/},
- {id:"enchant",label:"enchant",test:/\benchant\b/},
- {id:"difficulty",label:"difficulty",test:/\bdifficulty\b/},
- {id:"gamerule",label:"gamerule",test:/\bgamerule\b|\bgame rule\b/}
-];
-const GENERAL:Intent={id:"general",label:"general",test:/./};
-
-const SUGGEST:Record<string,string[]>={
- general:["weather rain","tp @p 100 64 200","give me 3 golden apple"],
- time:["set time to noon","set time to midnight","set time to day"],
- weather:["weather rain","weather thunder","weather clear"],
- gamemode:["gamemode creative","switch to survival","gamemode spectator"],
- give:["give me 3 golden apple","give me a netherite sword","give me 12 diamond"],
- summon:["summon skeleton 0 64 0","summon creeper ~ ~ ~","summon iron_golem"],
- teleport:["tp @p 100 64 200","teleport @p ~ ~10 ~","tp @a 0 80 0"],
- kill:["kill @e[type=creeper]","kill @e[type=item]","kill @p"],
- effect:["effect @p speed 30 1","effect @a night_vision 60 0","effect @a levitation 10 1"],
- enchant:["enchant @p sharpness 4","enchant @p mending 1","enchant @p unbreaking 3"],
- difficulty:["set difficulty hard","set difficulty peaceful","difficulty normal"],
- gamerule:["/gamerule keepInventory true","/gamerule doDaylightCycle false","/gamerule showCoordinates true"]
+const providers:Record<Provider,{label:string;url:string;model:string;keyPage:string}>={
+  openrouter:{label:"OpenRouter (free models)",url:"https://openrouter.ai/api/v1/chat/completions",model:"openrouter/free",keyPage:"https://openrouter.ai/keys"},
+  groq:{label:"Groq (free tier)",url:"https://api.groq.com/openai/v1/chat/completions",model:"llama-3.3-70b-versatile",keyPage:"https://console.groq.com/keys"},
+  gemini:{label:"Google Gemini (free tier)",url:"https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",model:"gemini-flash-latest",keyPage:"https://aistudio.google.com/apikey"},
+  openai:{label:"OpenAI (paid)",url:"https://api.openai.com/v1/chat/completions",model:"gpt-4o-mini",keyPage:"https://platform.openai.com/api-keys"},
+  anthropic:{label:"Anthropic (paid)",url:"https://api.anthropic.com/v1/messages",model:"claude-sonnet-5-5",keyPage:"https://platform.claude.com/settings/keys"}
 };
+const examples=["set time to night","give me a sharpness 5 diamond sword","teleport me to 0 100 0"];
 
-function planRequest(input:string,version:string,label:(k:string,vars?:Record<string,string|number>)=>string,lang:"en"|"fa"):Plan{
- const trimmed=input.trim();
- const s=trimmed.toLowerCase().replace(/[?!.]/g,"").replace(/\s+/g," ");
- const intent=INTENTS.find(i=>i.test.test(s))||GENERAL;
- const command=naturalCommand(trimmed,version);
- const unavailable=command.includes("is not available");
- const fallback=!command.startsWith("/")&&!unavailable;
- const name=unavailable?command.match(/\/([\w-]+) is not available/)?.[1]??"":command.startsWith("/")?command.slice(1).split(/\s+/)[0]:"";
- const definition=name?minecraftCommands.find(c=>c.name===name):undefined;
- const versionLabel=version==="All versions"?label("hero.allReleases"):(isFa(lang)?"جاوا ":"Java ")+version;
- const quoted=(q:string)=>label("agent.planQuoted",{q});
- const steps:Step[]=[
-  {label:label("agent.stepParse"),detail:trimmed?quoted(trimmed):label("agent.planEmpty")},
-  {label:label("agent.stepIntent"),detail:label("intent."+intent.id)},
-  {label:label("agent.stepVersion"),detail:unavailable?label("agent.planBlocked",{name,v:definition?.introduced??"a later release"}):fallback?label("agent.planNoMatch"):label("agent.planValidated",{v:versionLabel})},
-  {label:label("agent.stepCompose"),detail:unavailable?label("agent.planComposeBlocked"):command}
- ];
- return {intent,command,steps,unavailable,name,definition};
+function read(key:string,fallback:string){try{return localStorage.getItem(key)??fallback}catch{return fallback}}
+function write(key:string,value:string){try{localStorage.setItem(key,value)}catch{/* storage unavailable */}}
+function readProvider():Provider{const value=read("voxeltools-ai-provider","openrouter");return value in providers?(value as Provider):"openrouter"}
+function prefersReducedMotion(){try{return window.matchMedia("(prefers-reduced-motion: reduce)").matches}catch{return false}}
+
+// Every command that exists in the selected version, with its syntax.
+function commandReference(version:string){
+  const all=version==="All versions";
+  return agentCommands.filter(c=>isCommandAvailable(c,version)).map(c=>{
+    const notes=[c.introduced&&all?`added ${c.introduced}`:"",c.removed&&all?`removed ${c.removed}`:""].filter(Boolean).join(", ");
+    return `${syntaxFor(c,version)}${notes?` [${notes}]`:""}`;
+  }).join("\n");
 }
 
-export default function AICommandAgent({seed,version,saved,onCopy,onSave,onRemoveSaved}:Props){
- const {lang,t}=useLang();
- const initial=seed||"set time to night";
- const [input,setInput]=useState(initial);
- const [command,setCommand]=useState(()=>naturalCommand(initial,version));
- const [lastRun,setLastRun]=useState({input:initial,version});
- const [stepIndex,setStepIndex]=useState(4);
- const [running,setRunning]=useState(false);
- const [copied,setCopied]=useState(false);
- const [savedFlash,setFlash]=useState(false);
- const [showExplain,setShowExplain]=useState(false);
- const [refineIndex,setRefineIndex]=useState(0);
+function systemPrompt(version:string){
+  const all=version==="All versions";
+  const target=all?"any Java Edition version (the list shows when commands were added or removed)":version;
+  return `You are a Minecraft Java Edition command expert. The player's game version is ${target}.\n\nThe list below is the authoritative list of commands that exist in this version, with their top-level syntax. Only use commands from this list. If the request needs a command that is not listed, say it does not exist in this version and suggest the closest listed alternative (for example /item replaced /replaceitem in 1.17, and /execute if replaced /testfor in 1.13). The list shows the current argument format; for deeper arguments, item or block ids, selectors, NBT and item components, use your own knowledge of how this version works (for example item components replaced NBT in 1.20.5) and stay careful.\n\nReply with exactly one command inside a fenced code block, then at most two short sentences of explanation. If the request is unclear, ask one short question instead. Never invent commands or arguments.\n\nCOMMANDS:\n${commandReference(version)}`;
+}
 
- const plan=useMemo(()=>planRequest(input,version,t,lang),[input,version,t,lang]);
- const stale=lastRun.input!==input||lastRun.version!==version;
- const displayed=running?command:stale?plan.command:command;
- const badge=running?"RUNNING":stale?"DRAFT":plan.unavailable?"BLOCKED":"READY";
- const versionLabel=version==="All versions"?t("hero.allReleases"):(isFa(lang)?"جاوا ":"Java ")+version;
- const versionBadge=version==="All versions"?t("hero.allReleases"):(isFa(lang)?"جاوا ":"JAVA ")+version;
+function parseReply(raw:string,fallback:string):{text:string;command?:string}{
+  const reply=raw.replace(/<think>[\s\S]*?<\/think>/g,"").trim();
+  const match=reply.match(/```[\w-]*\n?([\s\S]*?)```/);
+  if(match)return {text:reply.replace(match[0],"").trim()||fallback,command:match[1].trim()};
+  // Some free models skip the code block, so fall back to the first line that starts with a slash.
+  const line=reply.split("\n").find(l=>/^\s*\/[a-z_:]+/i.test(l));
+  if(line)return {text:reply.replace(line,"").trim()||fallback,command:line.trim()};
+  return {text:reply};
+}
 
- const run=()=>{
-  if(running)return;
-  setRunning(true);setStepIndex(0);
-  plan.steps.forEach((_,i)=>window.setTimeout(()=>setStepIndex(i+1),300*(i+1)));
-  window.setTimeout(()=>{setCommand(plan.command);setLastRun({input,version});setStepIndex(plan.steps.length);setRunning(false)},300*plan.steps.length+160);
- };
- const copy=async()=>{await onCopy(displayed,"agent");setCopied(true);window.setTimeout(()=>setCopied(false),1400)};
- const save=()=>{onSave(displayed);setFlash(true);window.setTimeout(()=>setFlash(false),1400)};
- const refine=()=>{
-  const options=SUGGEST[plan.intent.id]||SUGGEST.general;
-  setInput(options[refineIndex%options.length]);
-  setRefineIndex(i=>i+1);
- };
+function toTurns(items:Msg[]):Turn[]{
+  const turns=items.filter(m=>m.raw).slice(-10).map((m):Turn=>({role:m.role==="user"?"user":"assistant",content:m.raw as string}));
+  const first=turns.findIndex(t=>t.role==="user");
+  return first<0?turns:turns.slice(first);
+}
 
- const statusLine=running?t("agent.executing"):plan.unavailable?`/${plan.name} ${t("agent.blocked")} ${versionLabel}`:stale?t("agent.draftHint"):t("agent.validatedFor",{v:versionLabel});
+async function callAI(provider:Provider,key:string,model:string,system:string,turns:Turn[]):Promise<string>{
+  const url=providers[provider].url;
+  if(provider==="anthropic"){
+    const res=await fetch(url,{
+      method:"POST",
+      headers:{"content-type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+      body:JSON.stringify({model,max_tokens:700,system,messages:turns})
+    });
+    const data=await res.json();
+    if(!res.ok)throw new Error(data?.error?.message||`Request failed (${res.status})`);
+    return (data.content as {type:string;text?:string}[]).filter(b=>b.type==="text").map(b=>b.text||"").join("\n");
+  }
+  // OpenRouter, Groq, Gemini and OpenAI all speak the OpenAI chat-completions format.
+  const res=await fetch(url,{
+    method:"POST",
+    headers:{"content-type":"application/json",authorization:`Bearer ${key}`},
+    body:JSON.stringify({model,messages:[{role:"system",content:system},...turns]})
+  });
+  const data=await res.json();
+  if(!res.ok){
+    const detail=Array.isArray(data)?data[0]?.error?.message:data?.error?.message;
+    throw new Error(detail||`Request failed (${res.status})`);
+  }
+  return String(data.choices?.[0]?.message?.content||"");
+}
 
- return <section aria-label="AI command agent">
-  <div className="generator-top">
-   <div>
-    <span className="section-eyebrow">{t("agent.eyebrow")}</span>
-    <h2>{t("agent.title1")}<br/><em>{t("agent.title2")}</em></h2>
-    <p>{t("agent.sub")}</p>
-   </div>
-   <div className="generator-context">
-    <span className="context-badge"><i/>{versionBadge}</span>
-    <span className="context-badge">{t("agent.badgeOffline")}</span>
-   </div>
-  </div>
-  <div className="generator-workspace">
-   <div className="generator-panel">
-    <div className="workspace-heading"><div><span>{t("agent.inputLabel")}</span><b>{t("agent.inputHeading")}</b></div><span className="workspace-key">✦</span></div>
-    <div className="natural-input">
-     <span className="agent-orb">✦</span>
-     <input aria-label={t("agent.inputAria")} value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")run()}} placeholder={t("agent.inputPlaceholder")}/>
-     <button className="agent-run" onClick={run} disabled={running}>{running?t("agent.running"):t("agent.run")}</button>
+// Reveals text one character at a time while animate is true, then shows it in full.
+function Typed({text,animate}:{text:string;animate:boolean}){
+  const [count,setCount]=useState(0);
+  useEffect(()=>{
+    if(!animate)return;
+    const id=window.setInterval(()=>setCount(v=>{if(v>=text.length){window.clearInterval(id);return v}return v+1}),14);
+    return()=>window.clearInterval(id);
+  },[text,animate]);
+  if(!animate)return <>{text}</>;
+  return <>{text.slice(0,count)}{count<text.length&&<span className="ai-caret"/>}</>;
+}
+
+export default function AICommandAgent({version}:{version:string}){
+  const {t}=useLang();
+  const nextId=useRef(1);
+  const endRef=useRef<HTMLDivElement|null>(null);
+  const [provider,setProvider]=useState<Provider>(readProvider);
+  const [model,setModel]=useState(()=>read("voxeltools-ai-model","")||providers[readProvider()].model);
+  const [apiKey,setApiKey]=useState(()=>read("voxeltools-ai-key",""));
+  const [keyDraft,setKeyDraft]=useState("");
+  const [showSettings,setShowSettings]=useState(()=>!read("voxeltools-ai-key",""));
+  const [input,setInput]=useState("");
+  const [busy,setBusy]=useState(false);
+  const [copied,setCopied]=useState(0);
+  const [freshId,setFreshId]=useState(-1);
+  const [saved,setSaved]=useState<string[]>(()=>{
+    try{const parsed=JSON.parse(read("voxeltools-agent-saved","[]"));return Array.isArray(parsed)?parsed.filter((x):x is string=>typeof x==="string").slice(0,20):[]}
+    catch{return []}
+  });
+  const [messages,setMessages]=useState<Msg[]>([{id:0,role:"agent",text:t("ai.welcome")}]);
+
+  useEffect(()=>{endRef.current?.scrollIntoView({block:"nearest"})},[messages,busy]);
+  // Provider and model are saved as soon as they change.
+  useEffect(()=>{write("voxeltools-ai-provider",provider);write("voxeltools-ai-model",model.trim()||providers[provider].model)},[provider,model]);
+
+  const push=(item:Omit<Msg,"id">)=>{const id=nextId.current++;setMessages(prev=>[...prev,{...item,id}]);return id};
+
+  const changeProvider=(next:Provider)=>{setProvider(next);setModel(providers[next].model)};
+
+  // Saves the key right away (on paste, Enter, leaving the field, or the Save key button).
+  const commitKey=(value:string)=>{
+    const key=value.trim();
+    if(!key){if(apiKey)setShowSettings(false);return}
+    if(key.length<8)return;
+    write("voxeltools-ai-key",key);
+    const stored=read("voxeltools-ai-key","")===key;
+    setApiKey(key);setKeyDraft("");setShowSettings(false);
+    push({role:"agent",text:stored?t("ai.keySavedMsg"):t("ai.keyNoStore")});
+  };
+  const onKeyPaste=(e:ClipboardEvent<HTMLInputElement>)=>{e.preventDefault();commitKey(e.clipboardData.getData("text"))};
+  const onKeyEnter=(e:KeyboardEvent<HTMLInputElement>)=>{if(e.key==="Enter"){e.preventDefault();commitKey(keyDraft)}};
+  const removeKey=()=>{write("voxeltools-ai-key","");setApiKey("");setKeyDraft("");setShowSettings(true)};
+
+  const ask=async(prompt:string,shown=prompt)=>{
+    const text=prompt.trim();
+    if(!text||busy||!apiKey)return;
+    const userMsg:Msg={id:nextId.current++,role:"user",text:shown.trim(),raw:text};
+    const next=[...messages,userMsg];
+    setMessages(next);setInput("");setBusy(true);
+    try{
+      const reply=await callAI(provider,apiKey,model.trim()||providers[provider].model,systemPrompt(version),toTurns(next));
+      if(!reply.trim())throw new Error(t("ai.emptyReply"));
+      const parsed=parseReply(reply,t("ai.here"));
+      setFreshId(push({role:"agent",text:parsed.text,command:parsed.command,raw:reply}));
+    }catch(err){
+      const message=err instanceof Error?err.message:"Request failed.";
+      push({role:"agent",text:message==="Failed to fetch"?t("ai.networkFail"):message});
+    }finally{setBusy(false)}
+  };
+
+  const copy=async(id:number,command:string)=>{
+    try{await navigator.clipboard.writeText(command);setCopied(id);window.setTimeout(()=>setCopied(0),1500)}
+    catch{push({role:"agent",text:t("ai.copyFail")})}
+  };
+  const persist=(next:string[])=>{setSaved(next);write("voxeltools-agent-saved",JSON.stringify(next))};
+  const saveCommand=(command:string)=>persist([...new Set([command,...saved])].slice(0,20));
+
+  return <div className="ai-agent">
+    <div className="ai-top">
+      <div className="ai-head">
+        <span className="section-eyebrow">{t("ai.eyebrow")}</span>
+        <h2>{t("ai.title1")}<br/><em>{t("ai.title2")}</em></h2>
+        <p>{t("ai.targets",{v:version==="All versions"?t("hero.allReleases"):version})}</p>
+      </div>
+      <button className="ai-gear" onClick={()=>setShowSettings(v=>!v)}>{showSettings?t("ai.hideSettings"):t("ai.settings")}</button>
     </div>
-    <div className="example-row"><span>{t("agent.try")}</span>{SUGGEST.general.map(s=><button key={s} onClick={()=>setInput(s)}>{s}</button>)}</div>
-    <div className="agent-plan" aria-label={t("agent.planTitle")}>
-     <div className="plan-title"><span>{t("agent.planTitle")}</span><small>{t("intent."+plan.intent.id)}</small></div>
-     <ol>{plan.steps.map((step,i)=><li key={step.label} className={i<stepIndex?"done":running&&i===stepIndex?"active":""}><span className="plan-dot"/><div><b>{step.label}</b><small>{step.detail}</small></div></li>)}</ol>
+    <div className={busy?"ai-chat busy":"ai-chat"}>
+      {showSettings&&<div className="ai-settings">
+        <div className="ai-grid">
+          <label>{t("ai.provider")}<select value={provider} onChange={e=>changeProvider(e.target.value as Provider)}>{(Object.keys(providers) as Provider[]).map(p=><option key={p} value={p}>{providers[p].label}</option>)}</select></label>
+          <label>{t("ai.model")}<input dir="ltr" value={model} onChange={e=>setModel(e.target.value)} placeholder={providers[provider].model}/></label>
+        </div>
+        <label>{t("ai.apiKey")}<input dir="ltr" type="password" autoComplete="off" value={keyDraft} onChange={e=>setKeyDraft(e.target.value)} onPaste={onKeyPaste} onKeyDown={onKeyEnter} onBlur={()=>{if(keyDraft.trim())commitKey(keyDraft)}} placeholder={apiKey?t("ai.keySavedPlaceholder"):t("ai.keyPlaceholder")}/></label>
+        <small><a href={providers[provider].keyPage} target="_blank" rel="noreferrer">{t("ai.getKey",{p:providers[provider].label.split(" (")[0]})}</a>. {t("ai.freeNote")}</small>
+        <small>{t("ai.keyNote")}</small>
+        <div className="ai-row"><button className="ai-primary" onClick={()=>commitKey(keyDraft)}>{t("ai.saveKey")}</button>{apiKey&&<button className="ai-ghost" onClick={removeKey}>{t("ai.removeKey")}</button>}</div>
+      </div>}
+      <div className="ai-log" aria-live="polite">
+        {messages.map(m=>{
+          const cmd=m.command;
+          const animate=m.id===freshId&&!prefersReducedMotion();
+          return <div key={m.id} className={`ai-msg ${m.role}`}>
+            <p><Typed text={m.text} animate={animate}/></p>
+            {cmd&&<>
+              <code dir="ltr"><Typed text={cmd} animate={animate}/></code>
+              <div className="ai-actions">
+                <button onClick={()=>copy(m.id,cmd)}>{copied===m.id?t("ai.copied"):t("ai.copy")}</button>
+                <button disabled={busy} onClick={()=>ask(t("ai.explainPrompt",{c:cmd}),t("ai.explainShown",{c:cmd}))}>{t("ai.explain")}</button>
+                <button disabled={busy} onClick={()=>ask(t("ai.fixPrompt",{c:cmd}),t("ai.fixShown",{c:cmd}))}>{t("ai.fix")}</button>
+                <button onClick={()=>saveCommand(cmd)}>{saved.includes(cmd)?t("ai.saved"):t("ai.save")}</button>
+              </div>
+            </>}
+          </div>;
+        })}
+        {busy&&<div className="ai-msg agent"><span className="ai-dots" role="status" aria-label={t("ai.thinking")}><i/><i/><i/></span></div>}
+        <div ref={endRef}/>
+      </div>
+      <div className="ai-examples">{examples.map(ex=><button key={ex} dir="ltr" disabled={busy||!apiKey} onClick={()=>ask(ex)}>{ex}</button>)}</div>
+      <form className="ai-compose" onSubmit={e=>{e.preventDefault();ask(input)}}>
+        <input aria-label={t("ai.composeAria")} disabled={!apiKey} value={input} onChange={e=>setInput(e.target.value)} placeholder={apiKey?t("ai.composePlaceholder"):t("ai.needKey")}/>
+        <button type="submit" disabled={busy||!apiKey}>{t("ai.send")}</button>
+      </form>
     </div>
-   </div>
-   <aside className="output-panel">
-    <div className="output-header"><div><span>{t("agent.outputLabel")}</span><b>{t("intent."+plan.intent.id)}</b></div><strong>{badge}</strong></div>
-    <div className="output-code">{running?<div className="shimmer"><span/><span/></div>:<pre className={stale?"draft":""} dir="ltr">{displayed}</pre>}</div>
-    <div className="output-actions">
-     <button className="copy-btn" onClick={copy}>{copied?t("agent.copied"):t("agent.copy")}</button>
-     <button className="save-btn" onClick={save}>{savedFlash?t("agent.saved"):t("agent.save")}</button>
-    </div>
-    <div className="output-actions agent-qa">
-     <button className={showExplain?"on":""} onClick={()=>setShowExplain(v=>!v)}>{t("agent.explain")}</button>
-     <button onClick={refine}>{t("agent.refine")}</button>
-    </div>
-    <div className="output-state"><span className={"state-dot"+(plan.unavailable?" error":"")}/><span>{statusLine}</span></div>
-    {showExplain&&<div className="agent-explain"><b>{t("agent.whyTitle")}</b><p>{t("explain."+plan.intent.id)}</p>{plan.definition&&<code dir="ltr">{syntaxFor(plan.definition,version)}</code>}</div>}
-   </aside>
-  </div>
-  <div className="generator-lower">
-   <div className="tip-card"><span>{t("agent.howLabel")}</span><b>{t("agent.howTitle")}</b><small>{t("agent.howBody")}</small></div>
-   <SavedCommands items={saved} onRemove={onRemoveSaved} onCopy={item=>onCopy(item,"saved")}/>
-  </div>
- </section>;
+    <SavedCommands items={saved} onRemove={item=>persist(saved.filter(x=>x!==item))} onCopy={async(value)=>{try{await navigator.clipboard.writeText(value)}catch{/* ignore */}}}/>
+  </div>;
 }
