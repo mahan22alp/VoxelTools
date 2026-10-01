@@ -2,6 +2,8 @@ import {useEffect,useRef,useState} from "react";
 import type {ClipboardEvent,KeyboardEvent} from "react";
 import "../agent.css";
 import SavedCommands from "./SavedCommands";
+import {agentCommands} from "../data/agentCommands";
+import {isCommandAvailable,syntaxFor} from "../engine/versionResolver";
 
 type Provider="gemini"|"groq"|"openrouter"|"openai"|"anthropic";
 type Msg={id:number;role:"user"|"agent";text:string;command?:string;raw?:string};
@@ -21,9 +23,19 @@ function write(key:string,value:string){try{localStorage.setItem(key,value)}catc
 function readProvider():Provider{const value=read("voxeltools-ai-provider","openrouter");return value in providers?(value as Provider):"openrouter"}
 function prefersReducedMotion(){try{return window.matchMedia("(prefers-reduced-motion: reduce)").matches}catch{return false}}
 
+// Every command that exists in the selected version, with its syntax.
+function commandReference(version:string){
+  const all=version==="All versions";
+  return agentCommands.filter(c=>isCommandAvailable(c,version)).map(c=>{
+    const notes=[c.introduced&&all?`added ${c.introduced}`:"",c.removed&&all?`removed ${c.removed}`:""].filter(Boolean).join(", ");
+    return `${syntaxFor(c,version)}${notes?` [${notes}]`:""}`;
+  }).join("\n");
+}
+
 function systemPrompt(version:string){
-  const target=version==="All versions"?"the latest release":version;
-  return `You are a Minecraft Java Edition command expert. The player's game version is ${target}. Reply with exactly one command inside a fenced code block, then at most two short sentences of explanation. If the request is unclear, ask one short question instead. Never invent commands or arguments. If something is not possible in this version, say so.`;
+  const all=version==="All versions";
+  const target=all?"any Java Edition version (the list shows when commands were added or removed)":version;
+  return `You are a Minecraft Java Edition command expert. The player's game version is ${target}.\n\nThe list below is the authoritative list of commands that exist in this version, with their top-level syntax. Only use commands from this list. If the request needs a command that is not listed, say it does not exist in this version and suggest the closest listed alternative (for example /item replaced /replaceitem in 1.17, and /execute if replaced /testfor in 1.13). The list shows the current argument format; for deeper arguments, item or block ids, selectors, NBT and item components, use your own knowledge of how this version works (for example item components replaced NBT in 1.20.5) and stay careful.\n\nReply with exactly one command inside a fenced code block, then at most two short sentences of explanation. If the request is unclear, ask one short question instead. Never invent commands or arguments.\n\nCOMMANDS:\n${commandReference(version)}`;
 }
 
 function parseReply(raw:string):{text:string;command?:string}{
@@ -149,7 +161,7 @@ export default function AICommandAgent({version}:{version:string}){
       <div className="ai-head">
         <span className="section-eyebrow">AI AGENT</span>
         <h2>Say it in words.<br/><em>Get the command.</em></h2>
-        <p>Uses your own API key. Targets {version==="All versions"?"the latest release":version}.</p>
+        <p>Uses your own API key. Targets {version==="All versions"?"all versions":version}.</p>
       </div>
       <button className="ai-gear" onClick={()=>setShowSettings(v=>!v)}>{showSettings?"Hide settings":"Settings"}</button>
     </div>
