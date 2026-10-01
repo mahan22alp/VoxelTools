@@ -18,6 +18,7 @@ const examples=["set time to night","give me a sharpness 5 diamond sword","telep
 function read(key:string,fallback:string){try{return localStorage.getItem(key)??fallback}catch{return fallback}}
 function write(key:string,value:string){try{localStorage.setItem(key,value)}catch{/* storage unavailable */}}
 function readProvider():Provider{const value=read("voxeltools-ai-provider","openrouter");return value in providers?(value as Provider):"openrouter"}
+function prefersReducedMotion(){try{return window.matchMedia("(prefers-reduced-motion: reduce)").matches}catch{return false}}
 
 function systemPrompt(version:string){
   const target=version==="All versions"?"the latest release":version;
@@ -66,6 +67,18 @@ async function callAI(provider:Provider,key:string,model:string,system:string,tu
   return String(data.choices?.[0]?.message?.content||"");
 }
 
+// Reveals text one character at a time while animate is true, then shows it in full.
+function Typed({text,animate}:{text:string;animate:boolean}){
+  const [count,setCount]=useState(0);
+  useEffect(()=>{
+    if(!animate)return;
+    const id=window.setInterval(()=>setCount(v=>{if(v>=text.length){window.clearInterval(id);return v}return v+1}),14);
+    return()=>window.clearInterval(id);
+  },[text,animate]);
+  if(!animate)return <>{text}</>;
+  return <>{text.slice(0,count)}{count<text.length&&<span className="ai-caret"/>}</>;
+}
+
 export default function AICommandAgent({version}:{version:string}){
   const nextId=useRef(1);
   const endRef=useRef<HTMLDivElement|null>(null);
@@ -77,6 +90,7 @@ export default function AICommandAgent({version}:{version:string}){
   const [input,setInput]=useState("");
   const [busy,setBusy]=useState(false);
   const [copied,setCopied]=useState(0);
+  const [freshId,setFreshId]=useState(-1);
   const [saved,setSaved]=useState<string[]>(()=>{
     try{const parsed=JSON.parse(read("voxeltools-agent-saved","[]"));return Array.isArray(parsed)?parsed.filter((x):x is string=>typeof x==="string").slice(0,20):[]}
     catch{return []}
@@ -85,7 +99,7 @@ export default function AICommandAgent({version}:{version:string}){
 
   useEffect(()=>{endRef.current?.scrollIntoView({block:"nearest"})},[messages,busy]);
 
-  const push=(item:Omit<Msg,"id">)=>setMessages(prev=>[...prev,{...item,id:nextId.current++}]);
+  const push=(item:Omit<Msg,"id">)=>{const id=nextId.current++;setMessages(prev=>[...prev,{...item,id}]);return id};
 
   const changeProvider=(next:Provider)=>{setProvider(next);setModel(providers[next].model)};
   const saveSettings=()=>{
@@ -108,7 +122,7 @@ export default function AICommandAgent({version}:{version:string}){
       const reply=await callAI(provider,apiKey,model.trim()||providers[provider].model,systemPrompt(version),toTurns(next));
       if(!reply.trim())throw new Error("The model returned an empty reply. Try again.");
       const parsed=parseReply(reply);
-      push({role:"agent",text:parsed.text,command:parsed.command,raw:reply});
+      setFreshId(push({role:"agent",text:parsed.text,command:parsed.command,raw:reply}));
     }catch(err){
       const message=err instanceof Error?err.message:"Request failed.";
       push({role:"agent",text:message==="Failed to fetch"?"Could not reach the provider. Check your connection, then try again.":message});
@@ -131,7 +145,7 @@ export default function AICommandAgent({version}:{version:string}){
       </div>
       <button className="ai-gear" onClick={()=>setShowSettings(v=>!v)}>{showSettings?"Hide settings":"Settings"}</button>
     </div>
-    <div className="ai-chat">
+    <div className={busy?"ai-chat busy":"ai-chat"}>
       {showSettings&&<div className="ai-settings">
         <div className="ai-grid">
           <label>Provider<select value={provider} onChange={e=>changeProvider(e.target.value as Provider)}>{(Object.keys(providers) as Provider[]).map(p=><option key={p} value={p}>{providers[p].label}</option>)}</select></label>
@@ -145,10 +159,11 @@ export default function AICommandAgent({version}:{version:string}){
       <div className="ai-log" aria-live="polite">
         {messages.map(m=>{
           const cmd=m.command;
+          const animate=m.id===freshId&&!prefersReducedMotion();
           return <div key={m.id} className={`ai-msg ${m.role}`}>
-            <p>{m.text}</p>
+            <p><Typed text={m.text} animate={animate}/></p>
             {cmd&&<>
-              <code>{cmd}</code>
+              <code><Typed text={cmd} animate={animate}/></code>
               <div className="ai-actions">
                 <button onClick={()=>copy(m.id,cmd)}>{copied===m.id?"Copied":"Copy"}</button>
                 <button disabled={busy} onClick={()=>ask(`Explain this command briefly: ${cmd}`,`Explain ${cmd}`)}>Explain</button>
@@ -158,7 +173,7 @@ export default function AICommandAgent({version}:{version:string}){
             </>}
           </div>;
         })}
-        {busy&&<div className="ai-msg agent"><p>Thinking...</p></div>}
+        {busy&&<div className="ai-msg agent"><span className="ai-dots" role="status" aria-label="Thinking"><i/><i/><i/></span></div>}
         <div ref={endRef}/>
       </div>
       <div className="ai-examples">{examples.map(t=><button key={t} disabled={busy||!apiKey} onClick={()=>ask(t)}>{t}</button>)}</div>
