@@ -114,8 +114,7 @@ function App(){
    try{if(!navigator.clipboard)throw new Error("Clipboard unavailable");await navigator.clipboard.writeText(value);setCopied(key);setCopyError(false);window.setTimeout(()=>setCopied(""),1500)}
    catch{setCopyError(true);setCopied("");window.setTimeout(()=>setCopyError(false),1600)}
  };
- const saveCommand=(value:string)=>{const next=[...new Set([value,...saved])].slice(0,20);setSaved(next);localStorage.setItem("voxeltools-saved",JSON.stringify(next));};
- const save=()=>saveCommand(command);
+ const save=()=>{const next=[...new Set([command,...saved])].slice(0,20);setSaved(next);localStorage.setItem("voxeltools-saved",JSON.stringify(next));};
  const removeSaved=(item:string)=>{const next=saved.filter(x=>x!==item);setSaved(next);localStorage.setItem("voxeltools-saved",JSON.stringify(next));};
 
  const field=(label:string,key:string,opts?:string[])=><label className="field"><span>{label}</span>{opts?<select value={form[key]||opts[0]} onChange={e=>set(key,e.target.value)}>{opts.map(o=><option key={o}>{o}</option>)}</select>:<input value={form[key]||""} onChange={e=>set(key,e.target.value)}/>}</label>;
@@ -224,8 +223,8 @@ function App(){
       </div>
     </section>
    </>:<>
-    <section className="generator-page section-wrap">
-      <AICommandAgent version={version} onSave={saveCommand}/>
+    <section className="agent-page section-wrap">
+      <AICommandAgent version={version}/>
     </section>
    </>}
    </main>
