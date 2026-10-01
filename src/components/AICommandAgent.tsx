@@ -7,9 +7,9 @@ type Msg={id:number;role:"user"|"agent";text:string;command?:string;raw?:string}
 type Turn={role:"user"|"assistant";content:string};
 
 const providers:Record<Provider,{label:string;url:string;model:string;keyPage:string}>={
-  gemini:{label:"Google Gemini (free tier)",url:"https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",model:"gemini-flash-latest",keyPage:"https://aistudio.google.com/apikey"},
+  openrouter:{label:"OpenRouter (free models)",url:"https://openrouter.ai/api/v1/chat/completions",model:"openrouter/free",keyPage:"https://openrouter.ai/keys"},
   groq:{label:"Groq (free tier)",url:"https://api.groq.com/openai/v1/chat/completions",model:"llama-3.3-70b-versatile",keyPage:"https://console.groq.com/keys"},
-  openrouter:{label:"OpenRouter (free models)",url:"https://openrouter.ai/api/v1/chat/completions",model:"meta-llama/llama-3.3-70b-instruct:free",keyPage:"https://openrouter.ai/keys"},
+  gemini:{label:"Google Gemini (free tier)",url:"https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",model:"gemini-flash-latest",keyPage:"https://aistudio.google.com/apikey"},
   openai:{label:"OpenAI (paid)",url:"https://api.openai.com/v1/chat/completions",model:"gpt-4o-mini",keyPage:"https://platform.openai.com/api-keys"},
   anthropic:{label:"Anthropic (paid)",url:"https://api.anthropic.com/v1/messages",model:"claude-sonnet-5-5",keyPage:"https://platform.claude.com/settings/keys"}
 };
@@ -17,17 +17,21 @@ const examples=["set time to night","give me a sharpness 5 diamond sword","telep
 
 function read(key:string,fallback:string){try{return localStorage.getItem(key)??fallback}catch{return fallback}}
 function write(key:string,value:string){try{localStorage.setItem(key,value)}catch{/* storage unavailable */}}
-function readProvider():Provider{const value=read("voxeltools-ai-provider","gemini");return value in providers?(value as Provider):"gemini"}
+function readProvider():Provider{const value=read("voxeltools-ai-provider","openrouter");return value in providers?(value as Provider):"openrouter"}
 
 function systemPrompt(version:string){
   const target=version==="All versions"?"the latest release":version;
-  return `You are a Minecraft Java Edition command expert. The player's game version is ${target}. Reply with exactly one command in a fenced code block, then at most two short sentences of explanation. If the request is unclear, ask one short question instead. Never invent commands or arguments. If something is not possible in this version, say so.`;
+  return `You are a Minecraft Java Edition command expert. The player's game version is ${target}. Reply with exactly one command inside a fenced code block, then at most two short sentences of explanation. If the request is unclear, ask one short question instead. Never invent commands or arguments. If something is not possible in this version, say so.`;
 }
 
-function parseReply(reply:string):{text:string;command?:string}{
+function parseReply(raw:string):{text:string;command?:string}{
+  const reply=raw.replace(/<think>[\s\S]*?<\/think>/g,"").trim();
   const match=reply.match(/```[\w-]*\n?([\s\S]*?)```/);
-  if(!match)return {text:reply.trim()};
-  return {text:reply.replace(match[0],"").trim()||"Here is your command:",command:match[1].trim()};
+  if(match)return {text:reply.replace(match[0],"").trim()||"Here is your command:",command:match[1].trim()};
+  // Some free models skip the code block, so fall back to the first line that starts with a slash.
+  const line=reply.split("\n").find(l=>/^\s*\/[a-z_:]+/i.test(l));
+  if(line)return {text:reply.replace(line,"").trim()||"Here is your command:",command:line.trim()};
+  return {text:reply};
 }
 
 function toTurns(items:Msg[]):Turn[]{
@@ -48,7 +52,7 @@ async function callAI(provider:Provider,key:string,model:string,system:string,tu
     if(!res.ok)throw new Error(data?.error?.message||`Request failed (${res.status})`);
     return (data.content as {type:string;text?:string}[]).filter(b=>b.type==="text").map(b=>b.text||"").join("\n");
   }
-  // Gemini, Groq, OpenRouter and OpenAI all speak the OpenAI chat-completions format.
+  // OpenRouter, Groq, Gemini and OpenAI all speak the OpenAI chat-completions format.
   const res=await fetch(url,{
     method:"POST",
     headers:{"content-type":"application/json",authorization:`Bearer ${key}`},
@@ -102,7 +106,7 @@ export default function AICommandAgent({version}:{version:string}){
     setMessages(next);setInput("");setBusy(true);
     try{
       const reply=await callAI(provider,apiKey,model.trim()||providers[provider].model,systemPrompt(version),toTurns(next));
-      if(!reply.trim())throw new Error("The model returned an empty reply.");
+      if(!reply.trim())throw new Error("The model returned an empty reply. Try again.");
       const parsed=parseReply(reply);
       push({role:"agent",text:parsed.text,command:parsed.command,raw:reply});
     }catch(err){
