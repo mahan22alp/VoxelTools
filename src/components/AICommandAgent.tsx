@@ -3,6 +3,8 @@ import {minecraftCommands} from "../data/commands";
 import {syntaxFor} from "../engine/versionResolver";
 import {naturalCommand} from "../engine/commandGenerator";
 import SavedCommands from "./SavedCommands";
+import {useLang} from "./LangContext";
+import {isFa} from "../i18n";
 
 type Props={seed:string;version:string;saved:string[];onCopy:(value:string,key:string)=>void|Promise<void>;onSave:(command:string)=>void;onRemoveSaved:(command:string)=>void};
 type Intent={id:string;label:string;test:RegExp};
@@ -10,34 +12,19 @@ type Step={label:string;detail:string};
 type Plan={intent:Intent;command:string;steps:Step[];unavailable:boolean;name:string;definition?:typeof minecraftCommands[number]};
 
 const INTENTS:Intent[]=[
- {id:"time",label:"World time",test:/\btime\b/},
- {id:"weather",label:"Weather",test:/\bweather\b|\brain\b|\bthunder\b|\bstorm\b/},
- {id:"gamemode",label:"Game mode",test:/\bgamemode\b|\bgame mode\b|\bcreative\b|\bsurvival\b|\badventure\b|\bspectator\b/},
- {id:"give",label:"Item grant",test:/\bgive\b|\bget me\b|\bitem\b|\bapple\b|\bsword\b|\bpickaxe\b|\bdiamond\b|\belytra\b|\bemerald\b|\bingot\b/},
- {id:"summon",label:"Entity summon",test:/\bsummon\b|\bspawn\b/},
- {id:"teleport",label:"Teleport",test:/\btp\b|\bteleport\b|\bwarp\b/},
- {id:"kill",label:"Entity removal",test:/\bkill\b|\bslay\b/},
- {id:"effect",label:"Status effect",test:/\beffect\b|\bpotion\b/},
- {id:"enchant",label:"Enchantment",test:/\benchant\b/},
- {id:"difficulty",label:"Difficulty",test:/\bdifficulty\b/},
- {id:"gamerule",label:"Game rule",test:/\bgamerule\b|\bgame rule\b/}
+ {id:"time",label:"time",test:/\btime\b/},
+ {id:"weather",label:"weather",test:/\bweather\b|\brain\b|\bthunder\b|\bstorm\b/},
+ {id:"gamemode",label:"gamemode",test:/\bgamemode\b|\bgame mode\b|\bcreative\b|\bsurvival\b|\badventure\b|\bspectator\b/},
+ {id:"give",label:"give",test:/\bgive\b|\bget me\b|\bitem\b|\bapple\b|\bsword\b|\bpickaxe\b|\bdiamond\b|\belytra\b|\bemerald\b|\bingot\b/},
+ {id:"summon",label:"summon",test:/\bsummon\b|\bspawn\b/},
+ {id:"teleport",label:"teleport",test:/\btp\b|\bteleport\b|\bwarp\b/},
+ {id:"kill",label:"kill",test:/\bkill\b|\bslay\b/},
+ {id:"effect",label:"effect",test:/\beffect\b|\bpotion\b/},
+ {id:"enchant",label:"enchant",test:/\benchant\b/},
+ {id:"difficulty",label:"difficulty",test:/\bdifficulty\b/},
+ {id:"gamerule",label:"gamerule",test:/\bgamerule\b|\bgame rule\b/}
 ];
-const GENERAL:Intent={id:"general",label:"Direct command",test:/./};
-
-const EXPLAIN:Record<string,string>={
- general:"Raw requests pass through the local engine unchanged after a version check.",
- time:"Maps day-phase words to clock ticks: day 1000, noon 6000, night 13000, midnight 18000.",
- weather:"Toggles rain and thunder for the whole world; clear resets both.",
- gamemode:"Switches a target between survival, creative, adventure and spectator.",
- give:"Resolves item aliases and counts into a /give with a target selector.",
- summon:"Places an entity at the given coordinates, defaulting to the executor position.",
- teleport:"Moves entities to coordinates or another destination entity.",
- kill:"Removes matching entities; scope it with a type selector to stay safe.",
- effect:"Grants a status effect with a duration in seconds and an amplifier level.",
- enchant:"Applies an enchantment to the item held by the target.",
- difficulty:"Sets the world difficulty for every connected player.",
- gamerule:"Reads or writes world rules such as keepInventory."
-};
+const GENERAL:Intent={id:"general",label:"general",test:/./};
 
 const SUGGEST:Record<string,string[]>={
  general:["weather rain","tp @p 100 64 200","give me 3 golden apple"],
@@ -54,7 +41,7 @@ const SUGGEST:Record<string,string[]>={
  gamerule:["/gamerule keepInventory true","/gamerule doDaylightCycle false","/gamerule showCoordinates true"]
 };
 
-function planRequest(input:string,version:string):Plan{
+function planRequest(input:string,version:string,label:(k:string,vars?:Record<string,string|number>)=>string,lang:"en"|"fa"):Plan{
  const trimmed=input.trim();
  const s=trimmed.toLowerCase().replace(/[?!.]/g,"").replace(/\s+/g," ");
  const intent=INTENTS.find(i=>i.test.test(s))||GENERAL;
@@ -63,17 +50,19 @@ function planRequest(input:string,version:string):Plan{
  const fallback=!command.startsWith("/")&&!unavailable;
  const name=unavailable?command.match(/\/([\w-]+) is not available/)?.[1]??"":command.startsWith("/")?command.slice(1).split(/\s+/)[0]:"";
  const definition=name?minecraftCommands.find(c=>c.name===name):undefined;
- const versionLabel=version==="All versions"?"all releases":"Java "+version;
+ const versionLabel=version==="All versions"?label("hero.allReleases"):(isFa(lang)?"جاوا ":"Java ")+version;
+ const quoted=(q:string)=>label("agent.planQuoted",{q});
  const steps:Step[]=[
-  {label:"Parse request",detail:trimmed?`"${trimmed}"`:"empty input"},
-  {label:"Resolve intent",detail:intent.label},
-  {label:"Apply version rules",detail:unavailable?`/${name} arrived in ${definition?.introduced??"a later release"} — select it or newer`:fallback?"no intent matched — showing engine hint":`validated against ${versionLabel}`},
-  {label:"Compose syntax",detail:unavailable?"blocked — adjust the version selector":command}
+  {label:label("agent.stepParse"),detail:trimmed?quoted(trimmed):label("agent.planEmpty")},
+  {label:label("agent.stepIntent"),detail:label("intent."+intent.id)},
+  {label:label("agent.stepVersion"),detail:unavailable?label("agent.planBlocked",{name,v:definition?.introduced??"a later release"}):fallback?label("agent.planNoMatch"):label("agent.planValidated",{v:versionLabel})},
+  {label:label("agent.stepCompose"),detail:unavailable?label("agent.planComposeBlocked"):command}
  ];
  return {intent,command,steps,unavailable,name,definition};
 }
 
 export default function AICommandAgent({seed,version,saved,onCopy,onSave,onRemoveSaved}:Props){
+ const {lang,t}=useLang();
  const initial=seed||"set time to night";
  const [input,setInput]=useState(initial);
  const [command,setCommand]=useState(()=>naturalCommand(initial,version));
@@ -85,11 +74,12 @@ export default function AICommandAgent({seed,version,saved,onCopy,onSave,onRemov
  const [showExplain,setShowExplain]=useState(false);
  const [refineIndex,setRefineIndex]=useState(0);
 
- const plan=useMemo(()=>planRequest(input,version),[input,version]);
+ const plan=useMemo(()=>planRequest(input,version,t,lang),[input,version,t,lang]);
  const stale=lastRun.input!==input||lastRun.version!==version;
  const displayed=running?command:stale?plan.command:command;
  const badge=running?"RUNNING":stale?"DRAFT":plan.unavailable?"BLOCKED":"READY";
- const versionLabel=version==="All versions"?"all releases":"Java "+version;
+ const versionLabel=version==="All versions"?t("hero.allReleases"):(isFa(lang)?"جاوا ":"Java ")+version;
+ const versionBadge=version==="All versions"?t("hero.allReleases"):(isFa(lang)?"جاوا ":"JAVA ")+version;
 
  const run=()=>{
   if(running)return;
@@ -105,51 +95,51 @@ export default function AICommandAgent({seed,version,saved,onCopy,onSave,onRemov
   setRefineIndex(i=>i+1);
  };
 
- const statusLine=running?"Executing plan…":plan.unavailable?`/${plan.name} is not available in ${versionLabel}`:stale?"Draft ready — press run to apply":`Validated for ${versionLabel}`;
+ const statusLine=running?t("agent.executing"):plan.unavailable?`/${plan.name} ${t("agent.blocked")} ${versionLabel}`:stale?t("agent.draftHint"):t("agent.validatedFor",{v:versionLabel});
 
  return <section aria-label="AI command agent">
   <div className="generator-top">
    <div>
-    <span className="section-eyebrow">AI / COMMAND AGENT</span>
-    <h2>Describe the outcome.<br/><em>Get the command.</em></h2>
-    <p>The agent parses your request, plans the steps and composes version-aware syntax — entirely offline, right in your browser.</p>
+    <span className="section-eyebrow">{t("agent.eyebrow")}</span>
+    <h2>{t("agent.title1")}<br/><em>{t("agent.title2")}</em></h2>
+    <p>{t("agent.sub")}</p>
    </div>
    <div className="generator-context">
-    <span className="context-badge"><i/>{version==="All versions"?"ALL RELEASES":"JAVA "+version}</span>
-    <span className="context-badge">OFFLINE · DETERMINISTIC</span>
+    <span className="context-badge"><i/>{versionBadge}</span>
+    <span className="context-badge">{t("agent.badgeOffline")}</span>
    </div>
   </div>
   <div className="generator-workspace">
    <div className="generator-panel">
-    <div className="workspace-heading"><div><span>AGENT INPUT</span><b>Describe the outcome you want</b></div><span className="workspace-key">✦</span></div>
+    <div className="workspace-heading"><div><span>{t("agent.inputLabel")}</span><b>{t("agent.inputHeading")}</b></div><span className="workspace-key">✦</span></div>
     <div className="natural-input">
      <span className="agent-orb">✦</span>
-     <input aria-label="Agent request" value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")run()}} placeholder="Describe your command..."/>
-     <button className="agent-run" onClick={run} disabled={running}>{running?"···":"Run"}</button>
+     <input aria-label={t("agent.inputAria")} value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")run()}} placeholder={t("agent.inputPlaceholder")}/>
+     <button className="agent-run" onClick={run} disabled={running}>{running?t("agent.running"):t("agent.run")}</button>
     </div>
-    <div className="example-row"><span>TRY</span>{SUGGEST.general.map(s=><button key={s} onClick={()=>setInput(s)}>{s}</button>)}</div>
-    <div className="agent-plan" aria-label="Execution plan">
-     <div className="plan-title"><span>EXECUTION PLAN</span><small>{plan.intent.label}</small></div>
+    <div className="example-row"><span>{t("agent.try")}</span>{SUGGEST.general.map(s=><button key={s} onClick={()=>setInput(s)}>{s}</button>)}</div>
+    <div className="agent-plan" aria-label={t("agent.planTitle")}>
+     <div className="plan-title"><span>{t("agent.planTitle")}</span><small>{t("intent."+plan.intent.id)}</small></div>
      <ol>{plan.steps.map((step,i)=><li key={step.label} className={i<stepIndex?"done":running&&i===stepIndex?"active":""}><span className="plan-dot"/><div><b>{step.label}</b><small>{step.detail}</small></div></li>)}</ol>
     </div>
    </div>
    <aside className="output-panel">
-    <div className="output-header"><div><span>AGENT OUTPUT</span><b>{plan.intent.label}</b></div><strong>{badge}</strong></div>
-    <div className="output-code">{running?<div className="shimmer"><span/><span/></div>:<pre className={stale?"draft":""}>{displayed}</pre>}</div>
+    <div className="output-header"><div><span>{t("agent.outputLabel")}</span><b>{t("intent."+plan.intent.id)}</b></div><strong>{badge}</strong></div>
+    <div className="output-code">{running?<div className="shimmer"><span/><span/></div>:<pre className={stale?"draft":""} dir="ltr">{displayed}</pre>}</div>
     <div className="output-actions">
-     <button className="copy-btn" onClick={copy}>{copied?"Copied ✓":"Copy"}</button>
-     <button className="save-btn" onClick={save}>{savedFlash?"Saved ✓":"Save"}</button>
+     <button className="copy-btn" onClick={copy}>{copied?t("agent.copied"):t("agent.copy")}</button>
+     <button className="save-btn" onClick={save}>{savedFlash?t("agent.saved"):t("agent.save")}</button>
     </div>
     <div className="output-actions agent-qa">
-     <button className={showExplain?"on":""} onClick={()=>setShowExplain(v=>!v)}>Explain</button>
-     <button onClick={refine}>Refine</button>
+     <button className={showExplain?"on":""} onClick={()=>setShowExplain(v=>!v)}>{t("agent.explain")}</button>
+     <button onClick={refine}>{t("agent.refine")}</button>
     </div>
     <div className="output-state"><span className={"state-dot"+(plan.unavailable?" error":"")}/><span>{statusLine}</span></div>
-    {showExplain&&<div className="agent-explain"><b>Why this command?</b><p>{EXPLAIN[plan.intent.id]||EXPLAIN.general}</p>{plan.definition&&<code>{syntaxFor(plan.definition,version)}</code>}</div>}
+    {showExplain&&<div className="agent-explain"><b>{t("agent.whyTitle")}</b><p>{t("explain."+plan.intent.id)}</p>{plan.definition&&<code dir="ltr">{syntaxFor(plan.definition,version)}</code>}</div>}
    </aside>
   </div>
   <div className="generator-lower">
-   <div className="tip-card"><span>HOW IT WORKS</span><b>Deterministic, offline agent</b><small>Requests are parsed, matched to an intent, checked against your selected release and composed into syntax — all locally. Nothing leaves the browser, so the same request always yields the same command.</small></div>
+   <div className="tip-card"><span>{t("agent.howLabel")}</span><b>{t("agent.howTitle")}</b><small>{t("agent.howBody")}</small></div>
    <SavedCommands items={saved} onRemove={onRemoveSaved} onCopy={item=>onCopy(item,"saved")}/>
   </div>
  </section>;

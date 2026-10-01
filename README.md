@@ -6,6 +6,7 @@ VoxelTools is an offline Minecraft Java command toolkit built with React, TypeSc
 
 - Version-aware Minecraft Java command reference
 - Offline AI command agent
+- English and Persian interface with RTL support
 - Search and category filtering
 - Copy and save commands
 - Responsive Swiss-style white and purple interface

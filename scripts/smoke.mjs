@@ -7,16 +7,22 @@ const css=readFileSync("src/styles.css","utf8");
 const search=readFileSync("src/components/GlobalSearch.tsx","utf8");
 const saved=readFileSync("src/components/SavedCommands.tsx","utf8");
 const commands=readFileSync("src/data/commands.ts","utf8");
-const index=readFileSync("dist/index.html","utf8");
+const i18n=readFileSync("src/i18n.ts","utf8");
+const index=readFileSync("index.html","utf8");
 
 const checks=[
-  [search,'aria-label="Global command search"',"global search"],
+  [search,'t("search.aria")',"global search"],
   [saved,'className="saved-panel"',"saved command panel"],
   [app,'AICommandAgent',"AI agent page integration"],
   [agent,'naturalCommand(',"version-aware agent generation"],
   [app,'localStorage.setItem("voxeltools-saved"',"saved command persistence"],
   [app,'localStorage.setItem("voxeltools-version"',"version persistence"],
+  [app,'localStorage.setItem("voxeltools-lang"',"language persistence"],
+  [app,'document.documentElement.dir=',"RTL direction switching"],
+  [i18n,'"fa"',"Persian dictionary"],
   [css,".saved-panel","saved panel styles"],
+  [css,".lang-fa","Persian/RTL styles"],
+  [index,'Vazirmatn',"Persian font loaded"],
   [commands,'introduced:"26.3"',"26.3 command metadata"],
   [index,"VoxelTools","production HTML"]
 ];
