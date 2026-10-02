@@ -5,12 +5,13 @@ import {versionOptions} from "../data/versions";
 type Kind="command"|"agent"|"translation"|"other";
 type Entry={id:number;kind:Kind;message:string;email:string;context:string;createdAt:number};
 type Draft=Partial<Entry>;
+type Error="none"|"fail"|"activation";
 type Props={draft:Draft|null;onDraftConsumed:()=>void};
 
-// Web3Forms endpoint. The access key is a public form key (safe client-side);
-// replace it with your own from https://web3forms.com if you fork this project.
-const ACCESS_KEY="0b6043ba-e6c1-46b3-9408-76854f6e99e7";
-const ENDPOINT="https://api.web3forms.com/submit";
+// FormSubmit forwards reports to the maintainer's inbox — no API key needed. The very
+// first submission emails a one-time "Activate Form" link to that address; until it is
+// confirmed, sends fail with the activation error and reports wait in the outbox.
+const ENDPOINT="https://formsubmit.co/ajax/mahanalipur2@gmail.com";
 const OUTBOX_KEY="voxeltools-report-outbox";
 
 function readOutbox():Entry[]{
@@ -24,18 +25,24 @@ async function send(entry:Entry):Promise<void>{
     method:"POST",
     headers:{"content-type":"application/json",accept:"application/json"},
     body:JSON.stringify({
-      access_key:ACCESS_KEY,
-      subject:"VoxelTools report: "+entry.kind,
-      from_name:"VoxelTools Report Tab",
+      _subject:"VoxelTools report: "+entry.kind,
+      _template:"table",
+      _captcha:"false",
+      _honey:"",
       kind:entry.kind,
       message:entry.message,
       email:entry.email||undefined,
+      _replyto:entry.email||undefined,
       context:entry.context,
       created_at:new Date(entry.createdAt).toISOString()
     })
   });
   const data=await res.json().catch(()=>({}));
-  if(!res.ok||data.success===false)throw new Error(data.message||`Request failed (${res.status})`);
+  if(!res.ok||data.success===false){
+    const reason=String(data.message||"");
+    if(/activat/i.test(reason))throw new Error("activation");
+    throw new Error(reason||`Request failed (${res.status})`);
+  }
 }
 
 export default function ReportPanel({draft,onDraftConsumed}:Props){
@@ -44,7 +51,7 @@ export default function ReportPanel({draft,onDraftConsumed}:Props){
   const [message,setMessage]=useState("");
   const [email,setEmail]=useState("");
   const [state,setState]=useState<"idle"|"sending"|"sent">("idle");
-  const [error,setError]=useState(false);
+  const [error,setError]=useState<Error>("none");
   const [outbox,setOutbox]=useState<Entry[]>(readOutbox);
   const seeded=useRef(false);
 
@@ -53,7 +60,7 @@ export default function ReportPanel({draft,onDraftConsumed}:Props){
     if(!draft||seeded.current)return;
     seeded.current=true;
     setKind(draft.kind?"agent":"agent");setMessage(draft.message||"");setEmail(draft.email||"");
-    setState("idle");setError(false);
+    setState("idle");setError("none");
     onDraftConsumed();
   },[draft,onDraftConsumed]);
 
@@ -62,22 +69,22 @@ export default function ReportPanel({draft,onDraftConsumed}:Props){
   const submit=async()=>{
     if(state==="sending")return;
     const text=message.trim();
-    if(!text){setError(true);return}
+    if(!text){setError("fail");return}
     const entry:Entry={id:Date.now(),kind,message:text,email:email.trim(),context:draft?.context||"",createdAt:Date.now()};
-    setState("sending");setError(false);
+    setState("sending");setError("none");
     try{
       await send(entry);
       setState("sent");
       setMessage("");setEmail("");setKind("command");
-    }catch{
+    }catch(err){
       persist([...outbox,entry]);
-      setState("idle");setError(true);
+      setState("idle");setError(err instanceof Error&&err.message==="activation"?"activation":"fail");
     }
   };
 
   const retry=async(entry:Entry)=>{
     try{await send(entry);persist(outbox.filter(e=>e.id!==entry.id))}
-    catch{setError(true)}
+    catch(err){setError(err instanceof Error&&err.message==="activation"?"activation":"fail")}
   };
 
   const kindLabel=(k:Kind)=>t("report.kind"+k.charAt(0).toUpperCase()+k.slice(1));
@@ -100,7 +107,7 @@ export default function ReportPanel({draft,onDraftConsumed}:Props){
           {kinds.map(k=><button key={k} className={kind===k?"report-chip on":"report-chip"} onClick={()=>setKind(k)}>{kindLabel(k)}</button>)}
         </div>
         <label className="report-label">{t("report.messageLabel")}</label>
-        <textarea className="report-text" rows={5} value={message} onChange={e=>{setMessage(e.target.value);setError(false)}} placeholder={t("report.messagePlaceholder")}/>
+        <textarea className="report-text" rows={5} value={message} onChange={e=>{setMessage(e.target.value);setError("none")}} placeholder={t("report.messagePlaceholder")}/>
         <label className="report-label">{t("report.emailLabel")}</label>
         <input className="report-input" dir="ltr" type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder={t("report.emailPlaceholder")}/>
         <div className="report-context">
@@ -108,7 +115,7 @@ export default function ReportPanel({draft,onDraftConsumed}:Props){
           <small>{t("report.contextHint")}</small>
           {draft?.context&&<code dir="ltr">{draft.context}</code>}
         </div>
-        {error&&<div className="report-error" role="alert">{t("report.fail")}</div>}
+        {error!=="none"&&<div className="report-error" role="alert">{t(error==="activation"?"report.activation":"report.fail")}</div>}
         <button className="report-submit" onClick={submit} disabled={state==="sending"||!message.trim()}>{state==="sending"?t("report.sending"):t("report.submit")}</button>
       </>}
     </div>
