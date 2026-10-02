@@ -106,6 +106,68 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:none;box-s
 .lang-fa .ai-msg code{direction:ltr;text-align:left}
 .lang-fa .ai-settings input,.lang-fa .ai-settings select{direction:ltr;text-align:left}
 
+/* Report tab */
+.report-wrap{max-width:640px;margin:0 auto;display:grid;gap:16px;animation:aiIn .45s cubic-bezier(.22,.8,.22,1) both}
+.report-head h2{margin:13px 0 0;font:800 clamp(34px,4.2vw,52px)/.98 "Plus Jakarta Sans",sans-serif;letter-spacing:-2.6px}
+.report-head h2 em{font-style:normal;color:var(--accent)}
+.report-head p{margin:12px 0 0;color:var(--muted);font-size:11px;line-height:1.7}
+.report-card{display:grid;gap:11px;padding:18px;border:1px solid var(--line);border-radius:18px;background:var(--surface);box-shadow:var(--shadow-sm)}
+.report-label{color:var(--muted);font-size:9px;font-weight:800;letter-spacing:.9px}
+.report-kinds{display:flex;flex-wrap:wrap;gap:6px}
+.report-chip{padding:8px 11px;border:1px solid var(--line);border-radius:999px;background:var(--surface-2);color:var(--muted);font-size:8px;font-weight:700;cursor:pointer;transition:.18s ease}
+.report-chip:hover{transform:translateY(-1px);border-color:#cac4e8}
+.report-chip.on{color:#fff;background:linear-gradient(135deg,var(--accent),#4d43b3);border-color:transparent;box-shadow:0 8px 18px rgba(95,85,201,.2)}
+.report-text,.report-input{width:100%;box-sizing:border-box;padding:11px 12px;border:1px solid var(--line);border-radius:11px;background:var(--surface-2);color:var(--ink);font:inherit;font-size:11px;resize:vertical}
+.report-text:focus,.report-input:focus{outline:none;border-color:#beb9e8;box-shadow:0 0 0 4px rgba(95,85,201,.07)}
+.report-context{display:grid;gap:4px;padding:10px 12px;border:1px dashed var(--line);border-radius:11px;background:var(--surface-2)}
+.report-context b{font-size:9px}
+.report-context small{color:var(--muted);font-size:8px;line-height:1.5}
+.report-context code{color:var(--accent);font:500 9px ui-monospace,SFMono-Regular,Consolas,monospace;overflow-wrap:anywhere}
+.report-error{padding:9px 12px;border-radius:10px;background:rgba(189,100,109,.12);border:1px solid rgba(189,100,109,.35);color:var(--danger);font-size:9px;font-weight:700}
+.report-submit{height:44px;border-radius:11px;color:#fff;background:linear-gradient(135deg,var(--accent),#4d43b3);font-size:10px;font-weight:800;cursor:pointer;box-shadow:0 12px 26px rgba(95,85,201,.22);transition:.18s ease}
+.report-submit:hover:not(:disabled){transform:translateY(-2px)}
+.report-submit:disabled{opacity:.55;cursor:not-allowed}
+.report-done{display:grid;justify-items:center;gap:10px;padding:26px 10px;text-align:center;animation:reportPop .45s cubic-bezier(.22,1.4,.36,1) both}
+.report-check{display:grid;place-items:center;width:52px;height:52px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-size:24px;font-weight:800}
+.report-done b{font-size:12px}
+.report-again{height:36px;padding:0 14px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);color:var(--muted);font-size:9px;font-weight:800;cursor:pointer}
+.report-again:hover{color:var(--ink);transform:translateY(-1px)}
+@keyframes reportPop{from{opacity:0;transform:scale(.86)}to{opacity:1;transform:scale(1)}}
+.report-outbox{display:grid;gap:8px;padding:13px 15px;border:1px solid var(--line);border-radius:14px;background:var(--surface-2)}
+.report-outbox-head{display:flex;align-items:center;gap:8px}
+.report-outbox-head b{font-size:10px}
+.report-outbox-badge{display:grid;place-items:center;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:var(--accent);color:#fff;font-size:8px;font-weight:800}
+.report-outbox>small{color:var(--muted);font-size:8px}
+.report-pending{display:grid;gap:6px;padding:10px 12px;border:1px solid var(--line);border-radius:11px;background:var(--surface)}
+.report-pending b{font-size:9px}
+.report-pending small{color:var(--muted);font-size:8px;line-height:1.5}
+.report-pending-actions{display:flex;gap:6px}
+.report-pending-actions button{height:28px;padding:0 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--muted);font-size:8px;font-weight:750;cursor:pointer}
+.report-pending-actions button:hover{color:var(--accent);border-color:#c8c3e8}
+.report-version{color:var(--muted-2);font-size:8px;text-align:center}
+@media(max-width:600px){.report-wrap{gap:12px}.report-card{padding:14px;border-radius:15px}.report-head h2{font-size:34px;letter-spacing:-2px}}
+
+/* Tab transitions: pages animate in on first visit */
+.page{animation:pageIn .42s cubic-bezier(.22,.8,.22,1) both}
+.page[hidden]{display:none}
+@keyframes pageIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+
+/* Notification bell badge + toast stack */
+.nav-badge{display:inline-grid;place-items:center;min-width:15px;height:15px;padding:0 4px;margin-left:5px;border-radius:999px;background:var(--accent);color:#fff;font-size:7px;font-weight:800;animation:badgePop .35s cubic-bezier(.22,1.6,.36,1) both}
+@keyframes badgePop{from{transform:scale(0)}to{transform:scale(1)}}
+.toast-stack{position:fixed;right:18px;bottom:18px;z-index:300;display:grid;gap:8px;width:min(320px,calc(100vw - 36px))}
+.toast{display:flex;align-items:center;gap:10px;padding:12px 13px;border:1px solid var(--line);border-radius:14px;background:var(--surface);box-shadow:var(--shadow-md);animation:toastIn .4s cubic-bezier(.22,1.2,.36,1) both}
+.toast>div{min-width:0;flex:1}
+.toast b{display:block;font-size:10px}
+.toast small{display:block;margin-top:2px;color:var(--muted);font-size:8px;line-height:1.45}
+.toast button{flex:0 0 auto;height:28px;padding:0 10px;border-radius:8px;background:linear-gradient(135deg,var(--accent),#4d43b3);color:#fff;font-size:8px;font-weight:800;cursor:pointer}
+.toast button:hover{transform:translateY(-1px)}
+.toast-icon{flex:0 0 26px;display:grid;place-items:center;width:26px;height:26px;border-radius:50%;font-size:12px;font-weight:800}
+.toast-done .toast-icon{background:rgba(77,136,109,.15);color:var(--success)}
+.toast-error .toast-icon{background:rgba(189,100,109,.15);color:var(--danger)}
+@keyframes toastIn{from{opacity:0;transform:translateY(14px) scale(.96)}to{opacity:1;transform:none}}
+.theme-dark .toast{background:rgba(21,24,32,.96);border-color:var(--line-2)}
+
 
 /* Theme controls */
 .theme-toggle{

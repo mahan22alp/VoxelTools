@@ -53,15 +53,31 @@ function groundingNote(command:string|undefined,version:string):string{
   return "";
 }
 
-function parseReply(raw:string,fallback:string):{text:string;command?:string}{
+export function parseReply(raw:string,fallback:string):{text:string;command?:string}{
+  // Reasoning models often wrap (or truncate mid-) a <think> block. Strip closed and
+  // unclosed reasoning so the final answer remains; fall back to scanning the raw text,
+  // because the command is frequently drafted inside the reasoning itself.
   let reply=raw.replace(/<think>[\s\S]*?<\/think>/g,"").trim();
-  // Reasoning models sometimes emit everything inside <think>; fall back to searching the raw text.
+  if(!reply)reply=raw.replace(/<think>[\s\S]*/g,"").trim();
   if(!reply)reply=raw.trim();
-  const match=reply.match(/```[\w-]*\n?([\s\S]*?)```/);
-  if(match)return {text:reply.replace(match[0],"").trim()||fallback,command:match[1].trim()};
-  // Some free models skip the code block, so fall back to the first line that starts with a slash.
-  const line=reply.split("\n").find(l=>/^\s*\/[a-z_:]+/i.test(l));
-  if(line)return {text:reply.replace(line,"").trim()||fallback,command:line.trim()};
+  // Prefer the last fenced block: reasoning models often draft several before the final one.
+  const blocks=reply.match(/```[\w-]*\n?([\s\S]*?)```/g);
+  if(blocks){const last=blocks[blocks.length-1];
+    const code=last.replace(/^```[\w-]*\n?/,"").replace(/```$/,'').trim();
+    return {text:reply.replace(last,"").trim()||fallback,command:code};}
+  // Some free models skip the code block, so fall back to the last line that starts with a slash.
+  const lines=reply.split("\n").filter(l=>/^\s*\/[a-z_:]+/i.test(l));
+  if(lines.length){const line=lines[lines.length-1].trim();
+    return {text:reply.split("\n").filter(l=>l.trim()!==line).join("\n").trim()||fallback,command:line};}
+  // Last resort: reasoning models often draft the command mid-sentence. Accept the final
+  // slash token whose name is a real Minecraft command, ignoring URLs and random slashes.
+  const mentions=reply.match(/\/[a-z][a-z0-9_:-]*/gi)||[];
+  const known=[...mentions].reverse().find(m=>{
+    const name=m.slice(1).split(/[\s\[]/)[0].split(":").pop()||"";
+    return agentCommands.some(c=>c.name===name);
+  });
+  if(known){const index=reply.lastIndexOf(known);
+    return {text:fallback,command:reply.slice(index).split("\n")[0].trim()};}
   return {text:reply};
 }
 
@@ -84,10 +100,12 @@ async function callAI(provider:Provider,key:string,model:string,system:string,tu
     return (data.content as {type:string;text?:string}[]).filter(b=>b.type==="text").map(b=>b.text||"").join("\n");
   }
   // OpenRouter, Groq, Gemini and OpenAI all speak the OpenAI chat-completions format.
+  // A reasoning budget keeps router models from burning the whole token limit thinking
+  // (the classic cause of empty replies); non-reasoning models just ignore the field.
   const res=await fetch(url,{
     method:"POST",
     headers:{"content-type":"application/json",authorization:`Bearer ${key}`},
-    body:JSON.stringify({model,temperature:0.2,max_tokens:1024,messages:[{role:"system",content:system},...turns]})
+    body:JSON.stringify({model,temperature:0.2,max_tokens:2048,reasoning:{max_tokens:768},messages:[{role:"system",content:system},...turns]})
   });
   const data=await res.json();
   if(!res.ok){
@@ -117,7 +135,9 @@ function Typed({text,animate}:{text:string;animate:boolean}){
   return <>{text.slice(0,count)}{count<text.length&&<span className="ai-caret"/>}</>;
 }
 
-export default function AICommandAgent({version,lang}:{version:string;lang:"en"|"fa"}){
+type AgentProps={version:string;lang:"en"|"fa";onFinished?:(ok:boolean)=>void;onReport?:(payload:{message:string;context:string})=>void};
+
+export default function AICommandAgent({version,lang,onFinished,onReport}:AgentProps){
   const {t}=useLang();
   const nextId=useRef(1);
   const endRef=useRef<HTMLDivElement|null>(null);
@@ -161,21 +181,29 @@ export default function AICommandAgent({version,lang}:{version:string;lang:"en"|
   const ask=async(prompt:string,shown=prompt)=>{
     const text=prompt.trim();
     if(!text||busy||!apiKey)return;
+    // Ask for notification permission while we still have the user's click context.
+    try{if("Notification" in window&&Notification.permission==="default")void Notification.requestPermission()}catch{/* ignore */}
     const userMsg:Msg={id:nextId.current++,role:"user",text:shown.trim(),raw:text};
     const next=[...messages,userMsg];
     setMessages(next);setInput("");setBusy(true);
+    let ok=false;
     try{
       const send=()=>callAI(provider,apiKey,model.trim()||providers[provider].model,systemPrompt(version,lang),toTurns(next));
       let reply=await send();
-      // Free routers intermittently return empty replies; retry once before giving up.
-      if(!reply.trim())reply=await send();
-      if(!reply.trim())throw new Error(t("ai.emptyReply"));
-      const parsed=parseReply(reply,t("ai.here"));
+      let parsed=parseReply(reply,t("ai.here"));
+      // Free routers intermittently return empty (or think-only, truncated) replies;
+      // retry once before giving up.
+      if(!reply.trim()||!parsed.text.trim()&&!parsed.command){
+        reply=await send();
+        parsed=parseReply(reply,t("ai.here"));
+      }
+      if(!parsed.text.trim()&&!parsed.command)throw new Error(t("ai.emptyReply"));
       setFreshId(push({role:"agent",text:parsed.text+groundingNote(parsed.command,version),command:parsed.command,raw:reply}));
+      ok=true;
     }catch(err){
       const message=err instanceof Error?err.message:"Request failed.";
       push({role:"agent",text:message==="Failed to fetch"?t("ai.networkFail"):message});
-    }finally{setBusy(false)}
+    }finally{setBusy(false);onFinished?.(ok)}
   };
 
   const copy=async(id:number,command:string)=>{
@@ -218,6 +246,7 @@ export default function AICommandAgent({version,lang}:{version:string;lang:"en"|
                 <button disabled={busy} onClick={()=>ask(t("ai.explainPrompt",{c:cmd}),t("ai.explainShown",{c:cmd}))}>{t("ai.explain")}</button>
                 <button disabled={busy} onClick={()=>ask(t("ai.fixPrompt",{c:cmd}),t("ai.fixShown",{c:cmd}))}>{t("ai.fix")}</button>
                 <button onClick={()=>saveCommand(cmd)}>{saved.includes(cmd)?t("ai.saved"):t("ai.save")}</button>
+                {onReport&&<button onClick={()=>onReport({message:m.text+(cmd?"\n\n"+cmd:""),context:cmd+" · "+version})}>{t("report.openFromAgent")}</button>}
               </div>
             </>}
           </div>;

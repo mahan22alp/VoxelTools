@@ -10,12 +10,15 @@ import SavedCommands from "./components/SavedCommands";
 import AICommandAgent from "./components/AICommandAgent";
 import VersionSelector from "./components/VersionSelector";
 import LanguageToggle from "./components/LanguageToggle";
+import ReportPanel from "./components/ReportPanel";
 import {LangProvider,useLang} from "./components/LangContext";
 import type {Lang} from "./i18n";
 
-type Page="home"|"generator"|"agent";
+type Page="home"|"generator"|"agent"|"report";
 type Theme="light"|"dark";
 type Tool={id:string;name:string;icon:string;desc:string};
+type Toast={id:number;kind:"done"|"error";title:string;body:string};
+type ReportDraft={message:string;context:string;email:string}|"none";
 
 const tools:Tool[]=[
  {id:"command",name:"Smart command",icon:"⌘",desc:"Describe the result you need and get syntax instantly."},
@@ -38,7 +41,8 @@ function getInitialTheme():Theme{
  return stored==="dark"||stored==="light"?stored:"light";
 }
 function getInitialLang():Lang{return safeRead("voxeltools-lang","en")==="fa"?"fa":"en"}
-function Icon({name}:{name:"search"|"arrow"|"copy"|"check"|"spark"|"grid"|"clock"|"bookmark"|"sun"|"moon"}) {
+function getInitialPage():Page{const stored=safeRead("voxeltools-page","home");return stored==="agent"||stored==="generator"||stored==="report"?stored:"home"}
+function Icon({name}:{name:"search"|"arrow"|"copy"|"check"|"spark"|"grid"|"clock"|"bookmark"|"sun"|"moon"|"bell"|"flag"}) {
  const paths:Record<string,string>={
   search:"M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14Zm5.2 12.2L21 21",
   arrow:"M5 12h13M13 6l6 6-6 6",
@@ -49,7 +53,9 @@ function Icon({name}:{name:"search"|"arrow"|"copy"|"check"|"spark"|"grid"|"clock
   clock:"M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z",
   bookmark:"M6 4h12v17l-6-3-6 3V4Z",
   sun:"M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z",
-  moon:"M20 15.2A8.5 8.5 0 0 1 8.8 4a8.5 8.5 0 1 0 11.2 11.2Z"
+  moon:"M20 15.2A8.5 8.5 0 0 1 8.8 4a8.5 8.5 0 1 0 11.2 11.2Z",
+  bell:"M18 9a6 6 0 1 0-12 0c0 6-2.5 7-2.5 7h17S18 15 18 9ZM10.3 20a2 2 0 0 0 3.4 0",
+  flag:"M5 21V4m0 1h13l-2.5 4L18 13H5"
  };
  return <svg viewBox="0 0 24 24" aria-hidden="true" className="icon"><path d={paths[name]} fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/></svg>;
 }
@@ -66,7 +72,7 @@ function App(){
 function AppShell({lang,onToggleLang}:{lang:Lang;onToggleLang:()=>void}){
  const {t}=useLang();
  const searchRef=useRef<HTMLInputElement|null>(null);
- const [page,setPage]=useState<Page>(()=>{const stored=safeRead("voxeltools-page","home");return stored==="agent"||stored==="generator"?stored:"home"});
+ const [page,setPage]=useState<Page>(getInitialPage);
  const [theme,setTheme]=useState<Theme>(getInitialTheme);
  const [tool,setTool]=useState("command");
  const [query,setQuery]=useState("");
@@ -86,6 +92,12 @@ function AppShell({lang,onToggleLang}:{lang:Lang;onToggleLang:()=>void}){
  });
  const [naturalInput,setNaturalInput]=useState("set time to night");
  const [generated,setGenerated]=useState("/time set night");
+ // The agent stays mounted on every page so chats survive tab switches; the bell
+ // collects completion notifications while the user is elsewhere.
+ const [unread,setUnread]=useState(0);
+ const [toasts,setToasts]=useState<Toast[]>([]);
+ const [seenPages,setSeenPages]=useState<Set<Page>>(()=>new Set([getInitialPage()]));
+ const [reportDraft,setReportDraft]=useState<ReportDraft>("none");
 
  useEffect(()=>{localStorage.setItem("voxeltools-page",page)},[page]);
  useEffect(()=>{
@@ -121,7 +133,11 @@ function AppShell({lang,onToggleLang}:{lang:Lang;onToggleLang:()=>void}){
 
  const set=(key:string,value:string)=>setForm(prev=>({...prev,[key]:value}));
  const command=useMemo(()=>tool==="command"?generated:generateToolCommand(tool,form,version),[tool,form,generated,version]);
- const switchPage=(next:Page)=>{setPage(next);window.scrollTo({top:0,behavior:"smooth"})};
+ const switchPage=(next:Page)=>{
+   setPage(next);
+   if(next==="report")setReportDraft("none");
+   window.scrollTo({top:0,behavior:"smooth"});
+ };
  const openCommands=()=>{switchPage("home");window.setTimeout(()=>document.getElementById("commands")?.scrollIntoView({behavior:"smooth",block:"start"}),120)};
  const copyText=async(value:string,key:string)=>{
    try{if(!navigator.clipboard)throw new Error("Clipboard unavailable");await navigator.clipboard.writeText(value);setCopied(key);setCopyError(false);window.setTimeout(()=>setCopied(""),1500)}
@@ -130,8 +146,27 @@ function AppShell({lang,onToggleLang}:{lang:Lang;onToggleLang:()=>void}){
  const save=()=>{const next=[...new Set([command,...saved])].slice(0,20);setSaved(next);localStorage.setItem("voxeltools-saved",JSON.stringify(next));};
  const removeSaved=(item:string)=>{const next=saved.filter(x=>x!==item);setSaved(next);localStorage.setItem("voxeltools-saved",JSON.stringify(next));};
 
+ // Fires when a background agent request completes — toast, badge, system notification.
+ const agentFinished=(ok:boolean)=>{
+   const toast:Toast={id:Date.now(),kind:ok?"done":"error",title:t(ok?"notif.doneTitle":"notif.errorTitle"),body:t(ok?"notif.doneBody":"notif.errorBody")};
+   setToasts(prev=>[...prev.slice(-2),toast]);
+   window.setTimeout(()=>setToasts(prev=>prev.filter(x=>x.id!==toast.id)),5200);
+   if(page!=="agent")setUnread(n=>n+1);
+   try{
+     if("Notification" in window&&Notification.permission==="granted"){
+       new Notification(toast.title,{body:toast.body,tag:"voxeltools-agent",icon:"./favicon.svg"});
+     }
+   }catch{/* ignore */}
+ };
+ const openAgent=()=>switchPage("agent");
+ const startReport=(payload:{message:string;context:string})=>{
+   setReportDraft({message:payload.message,context:payload.context,email:""});
+   setPage("report");
+   window.scrollTo({top:0,behavior:"smooth"});
+ };
+
  const num=(n:number)=>lang==="fa"?String(n).replace(/\d/g,d=>"۰۱۲۳۴۵۶۷۸۹"[Number(d)]):String(n);
- const faVersion=version==="All versions"?t("hero.allReleases"):t("field.z").slice(0,0)+ (lang==="fa"?"جاوا ":"Java ")+version;
+ const faVersion=version==="All versions"?t("hero.allReleases"):(lang==="fa"?"جاوا ":"Java ")+version;
  const versionLabel=version==="All versions"?t("hero.allReleases"):version;
  const heroVersionLabel=lang==="fa"?faVersion:versionLabel;
  const nextTheme=t("theme."+(theme==="light"?"toDark":"toLight"));
@@ -146,6 +181,9 @@ function AppShell({lang,onToggleLang}:{lang:Lang;onToggleLang:()=>void}){
    if(tool==="teleport")return <div className="field-grid">{field(t("field.player"),"player")}{field(t("field.x"),"x")}{field(t("field.y"),"y")}{field(t("field.z"),"z")}</div>;
    return <div className="natural-editor"><span className="input-caption">{t("gen.describeResult")}</span><div className="natural-line"><span><Icon name="spark"/></span><input aria-label={t("ai.composeAria")} value={naturalInput} onChange={e=>setNaturalInput(e.target.value)} placeholder={t("gen.tryPlaceholder")}/><kbd>{t("gen.live")}</kbd></div><p className="hint"><span><Icon name="check"/></span> {t("gen.generatedFor",{v:heroVersionLabel})}</p></div>;
  };
+ const pageClass=(p:Page)=>"page"+(seenPages.has(p)?" page-seen":"");
+ const markSeen=(p:Page)=>setSeenPages(prev=>prev.has(p)?prev:new Set(prev).add(p));
+ if(!seenPages.has(page))markSeen(page);
 
  return <div className={`app theme-${theme}${lang==="fa"?" lang-fa":""}`} data-theme={theme}>
    <div className="ambient ambient-one"></div><div className="ambient ambient-two"></div>
@@ -158,8 +196,9 @@ function AppShell({lang,onToggleLang}:{lang:Lang;onToggleLang:()=>void}){
        <nav className="main-nav" aria-label="Primary navigation">
          <button className={page==="home"?"nav active":"nav"} onClick={()=>switchPage("home")}>{t("nav.home")}</button>
          <button className={page==="generator"?"nav active":"nav"} onClick={()=>switchPage("generator")}>{t("nav.generator")}</button>
-         <button className={page==="agent"?"nav active":"nav"} onClick={()=>switchPage("agent")}>{t("nav.agent")}</button>
+         <button className={page==="agent"?"nav active":"nav"} onClick={()=>switchPage("agent")}>{t("nav.agent")}{unread>0&&<span className="nav-badge">{num(unread)}</span>}</button>
          <button className="nav" onClick={openCommands}>{t("nav.commands")}</button>
+         <button className={page==="report"?"nav active":"nav"} onClick={()=>switchPage("report")}>{t("report.eyebrow")}</button>
        </nav>
        <div className="header-actions">
          <VersionSelector value={version} options={versionOptions} onChange={setVersion}/>
@@ -170,7 +209,7 @@ function AppShell({lang,onToggleLang}:{lang:Lang;onToggleLang:()=>void}){
    </header>
 
    <main onMouseMove={e=>{const r=e.currentTarget.getBoundingClientRect();setMouse({x:((e.clientX-r.left)/r.width)*100,y:((e.clientY-r.top)/r.height)*100})}}>
-   {page==="home"?<>
+   {page==="home"&&<div className={pageClass("home")}>
     <section className="hero section-wrap">
       <div className="hero-copy reveal in-view">
         <div className="eyebrow"><span></span>{t("hero.eyebrow")} <b>{t("hero.eyebrowTag")}</b></div>
@@ -217,8 +256,10 @@ function AppShell({lang,onToggleLang}:{lang:Lang;onToggleLang:()=>void}){
       <div className="workflow-copy"><span className="section-eyebrow">{t("flow.eyebrow")}</span><h2>{t("flow.title1")}<br/><em>{t("flow.title2")}</em></h2><p>{t("flow.sub")}</p><button className="text-link" onClick={()=>switchPage("generator")}>{t("flow.cta")} <Icon name="arrow"/></button></div>
     </section>
 
-    <section className="cta section-wrap reveal"><div><div><span className="section-eyebrow light">{t("cta.eyebrow")}</span><h2>{t("cta.title1")}<br/><em>{t("cta.title2")}</em></h2></div><button onClick={()=>switchPage("generator")}>{t("cta.button")} <Icon name="arrow"/></button></div></section>
-   </>:page==="generator"?<>
+    <section className="cta section-wrap reveal"><div><div><span className="section-eyebrow light">{t("cta.eyebrow")}</span><h2>{t("cta.title1")}<br/><em>{t("cta.title2")}</em></h2></div><button onClick={()=>switchPage("generator")}>{t("cta.button")} <Icon name="arrow"/></button></div>    </section>
+   </div>
+   }
+   {page==="generator"&&<div className={pageClass("generator")}>
     <section className="generator-page section-wrap">
       <div className="generator-top">
         <div><span className="section-eyebrow">{t("gen.eyebrow")}</span><h2>{t("gen.title1")}<br/><em>{t("gen.title2")}</em></h2><p>{t("gen.sub")}</p></div>
@@ -245,11 +286,30 @@ function AppShell({lang,onToggleLang}:{lang:Lang;onToggleLang:()=>void}){
         <SavedCommands items={saved} onRemove={removeSaved} onCopy={value=>copyText(value,`saved-${value}`)}/>
       </div>
     </section>
-   </>:<section className="agent-page section-wrap">
-    <AICommandAgent version={version} lang={lang}/>
-   </section>}
+   </div>
+   }
+   {page==="report"&&<div className={pageClass("report")}>
+    <section className="agent-page section-wrap">
+      <ReportPanel draft={reportDraft==="none"?null:reportDraft} onDraftConsumed={()=>setReportDraft("none")}/>
+    </section>
+   </div>
+   }
+   {/* The agent stays mounted on every page and is only hidden elsewhere, so an in-flight
+       request keeps running and the chat history survives tab switches. */}
+   <div className={pageClass("agent")} hidden={page!=="agent"}>
+    <section className="agent-page section-wrap">
+      <AICommandAgent version={version} lang={lang} onFinished={agentFinished} onReport={startReport}/>
+    </section>
+   </div>
    </main>
    <footer className="site-footer"><div><b>Voxel<span>Tools</span></b><span>{t("footer.tag")}</span></div><div><span>{t("footer.local")}</span><span>{t("footer.focused")}</span></div></footer>
+   <div className="toast-stack" aria-live="polite">
+     {toasts.map(x=><div key={x.id} className={`toast toast-${x.kind}`}>
+       <span className="toast-icon">{x.kind==="done"?"✓":"!"}</span>
+       <div><b>{x.title}</b><small>{x.body}</small></div>
+       <button onClick={()=>{setToasts(prev=>prev.filter(y=>y.id!==x.id));openAgent()}}>{t("nav.agent")}</button>
+     </div>)}
+   </div>
  </div>;
 }
 
