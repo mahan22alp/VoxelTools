@@ -1,0 +1,118 @@
+/* Version themes: site colors follow the selected Minecraft version group */
+.app[data-era]:not([data-era="all"]){
+ --accent-soft:color-mix(in srgb,var(--accent) 14%,var(--surface));
+ --accent-faint:color-mix(in srgb,var(--accent) 6%,var(--surface));
+ background:radial-gradient(900px 520px at 88% -6%,color-mix(in srgb,var(--glow) 42%,transparent),transparent 64%),radial-gradient(700px 500px at -12% 22%,color-mix(in srgb,var(--glow) 26%,transparent),transparent 66%),var(--bg);
+}
+.app.theme-dark[data-era]:not([data-era="all"]){
+ --accent-soft:color-mix(in srgb,var(--accent) 22%,var(--surface));
+ --accent-faint:color-mix(in srgb,var(--accent) 10%,var(--surface));
+ background:radial-gradient(900px 520px at 88% -6%,color-mix(in srgb,var(--glow) 16%,transparent),transparent 64%),radial-gradient(700px 500px at -12% 22%,color-mix(in srgb,var(--glow) 9%,transparent),transparent 66%),var(--bg);
+}
+.app[data-era]:not([data-era="all"]) .ambient-one{background:var(--glow)}
+.app[data-era]:not([data-era="all"]) .ambient-two{background:var(--accent-2)}
+.app[data-era]:not([data-era="all"]) .brand-mark{background:linear-gradient(145deg,var(--accent-2),var(--accent))}
+.app[data-era]:not([data-era="all"]) .workflow-core{background:radial-gradient(circle at 32% 28%,var(--accent-2),var(--accent) 62%,var(--deep) 100%)}
+.app[data-era]:not([data-era="all"]) :is(.primary-action,.copy-btn,.report-submit,.report-chip.on,.toast button,.ai-primary,.ai-compose button){background:linear-gradient(135deg,var(--accent),var(--deep))}
+
+/* Hero stage */
+.app .hero-visual.era-stage{isolation:isolate;background:linear-gradient(150deg,color-mix(in srgb,var(--accent) 9%,var(--surface)),color-mix(in srgb,var(--accent) 3%,var(--surface-2)));border-color:color-mix(in srgb,var(--accent) 24%,var(--line))}
+.era-scene{position:absolute;inset:0;animation:eraIn .55s cubic-bezier(.22,.8,.22,1) both}
+@keyframes eraIn{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:none}}
+.era-badge{position:absolute;z-index:4;left:22px;top:20px;display:flex;align-items:center;gap:8px;padding:8px 11px;border:1px solid var(--line);border-radius:12px;background:color-mix(in srgb,var(--surface) 80%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:var(--shadow-xs);pointer-events:none}
+.era-badge i{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 5px color-mix(in srgb,var(--accent) 16%,transparent)}
+.era-badge b{font-size:10px}
+.era-badge small{color:var(--muted);font-size:8px;font-weight:700}
+.era-hint{position:absolute;z-index:3;left:22px;right:22px;bottom:84px;margin:0;text-align:center;color:var(--muted);font-size:8px;font-weight:700;pointer-events:none}
+.era-cmd{position:absolute;z-index:5;left:20px;right:20px;bottom:20px;display:flex;align-items:center;gap:10px;padding:11px 12px 11px 14px;border:1px solid var(--line);border-radius:14px;background:color-mix(in srgb,var(--surface) 82%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:var(--shadow-sm)}
+.era-cmd code{flex:1;min-width:0;overflow-wrap:anywhere;color:var(--ink);font:600 11px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace}
+.era-cmd button{flex:0 0 auto;height:30px;padding:0 12px;border-radius:8px;background:var(--accent);color:#fff;font-size:8px;font-weight:800;cursor:pointer;transition:.18s ease}
+.era-cmd button:hover{transform:translateY(-1px)}
+
+/* All versions: timeline */
+.timeline{position:absolute;inset:78px 22px 22px;display:grid;grid-template-rows:repeat(7,1fr);gap:6px}
+.tl-row{position:relative;overflow:hidden;display:grid;grid-template-columns:12px minmax(0,1fr) auto;align-items:center;gap:10px;padding:0 12px;border:1px solid var(--line);border-radius:12px;background:color-mix(in srgb,var(--surface) 72%,transparent);color:var(--ink);text-align:left;cursor:pointer;transition:.2s ease;animation:eraIn .5s calc(var(--i) * .06s) both}
+.tl-row:hover{transform:translateX(4px);border-color:var(--c);box-shadow:0 10px 24px color-mix(in srgb,var(--c) 22%,transparent)}
+.tl-row::after{content:"";position:absolute;left:0;bottom:0;height:2px;width:var(--w);background:var(--c);opacity:.7}
+.tl-dot{width:10px;height:10px;border-radius:50%;background:var(--c);box-shadow:0 0 0 4px color-mix(in srgb,var(--c) 18%,transparent)}
+.tl-row b{font-size:10px}
+.tl-row small{color:var(--muted);font-size:8px;font-weight:700}
+
+/* Classic: block painter */
+.px-grid{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:grid;grid-template-columns:repeat(8,1fr);gap:4px;width:min(78%,430px)}
+.px-cell{aspect-ratio:1;padding:0;border-radius:3px;background:var(--c);box-shadow:inset 0 -5px rgba(0,0,0,.26),inset 5px 5px rgba(255,255,255,.2);cursor:pointer;transition:transform .12s ease,filter .15s ease}
+.px-cell:hover{transform:translateY(-3px) scale(1.06);filter:brightness(1.12)}
+.px-cell:active{transform:scale(.92)}
+
+/* Aquatic: water and bubbles */
+.water{position:absolute;inset:0;cursor:pointer;overflow:hidden}
+.wave{position:absolute;left:-25%;width:150%;height:150%;border-radius:42%;animation:wave 9s linear infinite}
+.wave.w1{top:46%;background:color-mix(in srgb,var(--accent) 22%,transparent)}
+.wave.w2{top:52%;background:color-mix(in srgb,var(--accent-2) 26%,transparent);animation-duration:13s;animation-direction:reverse}
+.wave.w3{top:60%;background:color-mix(in srgb,var(--deep) 30%,transparent);animation-duration:17s}
+@keyframes wave{to{transform:rotate(360deg)}}
+.bubble{position:absolute;bottom:22%;border-radius:50%;border:1.5px solid color-mix(in srgb,var(--accent-2) 70%,#fff);background:radial-gradient(circle at 30% 30%,rgba(255,255,255,.7),transparent 60%);animation:rise 2.4s ease-in forwards;pointer-events:none}
+@keyframes rise{to{transform:translateY(-300px) scale(1.3);opacity:0}}
+
+/* Nether: portal */
+.portal{position:absolute;left:50%;top:50%;transform:translate(-50%,-52%);width:min(32%,170px);aspect-ratio:2/3;padding:0;border-radius:6px;background:#1a1022;border:12px solid #261637;box-shadow:inset 0 0 0 3px #3a2358,0 18px 40px rgba(0,0,0,.28);cursor:pointer;overflow:hidden;transition:box-shadow .3s ease}
+.portal-in{display:block;position:absolute;inset:0;background:#0d0814;transition:background .4s ease}
+.portal.lit{box-shadow:inset 0 0 0 3px #4b2f72,0 0 60px 8px color-mix(in srgb,var(--accent) 50%,transparent)}
+.portal.lit .portal-in{background:conic-gradient(from 0deg,#6b2bd1,var(--accent),#b01fa0,#6b2bd1);animation:swirl 3.2s linear infinite}
+@keyframes swirl{to{transform:rotate(360deg) scale(1.6)}}
+.embers{position:absolute;inset:0;pointer-events:none}
+.embers i{position:absolute;bottom:26%;width:5px;height:5px;border-radius:50%;background:var(--accent-2);box-shadow:0 0 8px var(--accent);opacity:0;animation:ember 2.6s ease-in infinite}
+@keyframes ember{0%{opacity:0;transform:translateY(0)}20%{opacity:1}100%{opacity:0;transform:translateY(-190px) translateX(14px)}}
+
+/* Caves: depth gauge */
+.depth{position:absolute;left:24px;right:24px;top:84px;bottom:86px;display:grid;align-content:center;gap:16px}
+.depth-y{font:800 clamp(44px,6vw,76px)/1 "Plus Jakarta Sans",sans-serif;letter-spacing:-3px;color:var(--ink)}
+.depth-y small{margin-left:10px;color:var(--muted);font-size:11px;letter-spacing:0;font-weight:700}
+.strata{position:relative;height:104px;overflow:hidden;border:1px solid var(--line);border-radius:14px}
+.strata-mark{position:absolute;top:0;bottom:0;width:3px;margin-left:-1px;background:var(--accent);box-shadow:0 0 18px 3px color-mix(in srgb,var(--accent) 60%,transparent)}
+.depth input[type=range]{width:100%;accent-color:var(--accent)}
+
+/* Wild: sculk sensor */
+.sculk{position:absolute;inset:0;cursor:crosshair;overflow:hidden;background:radial-gradient(circle at 50% 52%,color-mix(in srgb,var(--accent) 22%,transparent),transparent 62%)}
+.sensor{position:absolute;left:50%;top:50%;width:min(30%,130px);aspect-ratio:1;transform:translate(-50%,-56%);border-radius:30% 30% 22% 22%;background:radial-gradient(circle at 35% 30%,color-mix(in srgb,var(--accent-2) 80%,#fff),var(--accent) 55%,var(--deep));box-shadow:0 0 38px color-mix(in srgb,var(--accent) 55%,transparent);animation:sensor 3s ease-in-out infinite}
+.sensor.awake{filter:hue-rotate(-40deg) brightness(1.3);animation:shake .35s linear infinite}
+@keyframes sensor{50%{transform:translate(-50%,-56%) scale(1.06)}}
+@keyframes shake{0%,100%{transform:translate(-50%,-56%)}25%{transform:translate(-52%,-56%)}75%{transform:translate(-48%,-56%)}}
+.ripple{position:absolute;width:20px;height:20px;margin:-10px 0 0 -10px;border-radius:50%;border:2px solid var(--accent-2);animation:ripple 1.3s ease-out forwards;pointer-events:none}
+@keyframes ripple{to{transform:scale(14);opacity:0}}
+.anger{position:absolute;left:22px;right:22px;bottom:104px;height:6px;border-radius:99px;background:color-mix(in srgb,var(--accent) 14%,transparent)}
+.anger u{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,var(--accent-2),var(--danger));transition:width .25s ease}
+
+/* Trials: vault */
+.vault{position:absolute;left:50%;top:50%;transform:translate(-50%,-54%);width:min(34%,170px);aspect-ratio:1;padding:0;border-radius:20px;background:linear-gradient(145deg,#8a5a3a,#5a3622);border:7px solid color-mix(in srgb,var(--accent) 70%,#3a2216);box-shadow:inset 0 0 0 3px rgba(0,0,0,.25),0 22px 40px rgba(0,0,0,.25);cursor:pointer;transition:transform .2s ease,box-shadow .3s ease}
+.vault:hover{transform:translate(-50%,-56%) scale(1.03)}
+.vault i{position:absolute;left:50%;top:50%;width:22%;height:30%;transform:translate(-50%,-50%);border-radius:50% 50% 8px 8px;background:#161012;box-shadow:inset 0 0 12px color-mix(in srgb,var(--accent-2) 70%,transparent);transition:.3s ease}
+.vault.open{box-shadow:inset 0 0 0 3px rgba(0,0,0,.25),0 0 70px 10px color-mix(in srgb,var(--accent-2) 55%,transparent)}
+.vault.open i{background:var(--accent-2);box-shadow:0 0 24px var(--accent-2)}
+.loot{position:absolute;z-index:4;left:50%;top:84px;padding:8px 14px;border-radius:999px;background:var(--accent);color:#fff;font-size:10px;font-weight:800;white-space:nowrap;animation:lootUp .6s cubic-bezier(.22,1.4,.36,1) both}
+@keyframes lootUp{from{opacity:0;transform:translate(-50%,24px) scale(.6)}to{opacity:1;transform:translate(-50%,0)}}
+
+/* 26.x: neon grid */
+.neon{position:absolute;inset:0;cursor:pointer;overflow:hidden}
+.neon::before{content:"";position:absolute;inset:0;background:radial-gradient(280px circle at var(--mx,50%) var(--my,50%),color-mix(in srgb,var(--accent-2) 38%,transparent),transparent 70%)}
+.neon::after{content:"";position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--accent-2),transparent);animation:scan 4s linear infinite;pointer-events:none}
+@keyframes scan{from{top:0}to{top:100%}}
+.neon-grid{position:absolute;inset:78px 22px 96px;display:grid;grid-template-columns:repeat(8,1fr);grid-auto-rows:1fr;gap:6px}
+.neon-grid i{border:1px solid color-mix(in srgb,var(--accent) 28%,transparent);border-radius:7px;background:color-mix(in srgb,var(--accent) 5%,transparent);transition:.25s ease}
+.neon-grid i:hover{background:color-mix(in srgb,var(--accent-2) 55%,transparent);box-shadow:0 0 18px var(--accent-2);transform:scale(1.08)}
+.neon-title{position:absolute;left:50%;top:50%;transform:translate(-50%,-56%);font:800 clamp(52px,9vw,104px)/1 "Plus Jakarta Sans",sans-serif;letter-spacing:-5px;background:linear-gradient(135deg,var(--accent),var(--accent-2));-webkit-background-clip:text;background-clip:text;color:transparent;pointer-events:none}
+.neon-ring{position:absolute;left:50%;top:50%;width:80px;height:80px;margin:-40px 0 0 -40px;border:2px solid var(--accent-2);border-radius:50%;animation:ripple 1.2s ease-out forwards;pointer-events:none}
+
+@media(max-width:600px){
+ .era-badge{left:14px;top:14px;padding:6px 9px}
+ .era-cmd{left:12px;right:12px;bottom:12px;padding:8px 9px 8px 11px}
+ .era-cmd code{font-size:9px}
+ .era-hint{bottom:62px;font-size:7px}
+ .timeline{inset:62px 12px 12px;gap:4px}
+ .depth{left:14px;right:14px;top:60px;bottom:66px;gap:8px}
+ .depth-y{font-size:38px}
+ .strata{height:64px}
+ .anger{bottom:70px}
+ .neon-grid{inset:62px 12px 78px}
+ .loot{top:62px}
+}
