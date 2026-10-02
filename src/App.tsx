@@ -1,7 +1,7 @@
 import {useEffect,useMemo,useRef,useState} from "react";
-import type {CSSProperties} from "react";
 import {minecraftCommands} from "./data/commands";
 import {versionOptions} from "./data/versions";
+import {eraFor,eraVars} from "./data/eras";
 import {isCommandAvailable,syntaxFor} from "./engine/versionResolver";
 import {naturalCommand} from "./engine/commandGenerator";
 import {generateToolCommand} from "./engine/toolGenerator";
@@ -9,6 +9,7 @@ import GlobalSearch from "./components/GlobalSearch";
 import SavedCommands from "./components/SavedCommands";
 import AICommandAgent from "./components/AICommandAgent";
 import VersionSelector from "./components/VersionSelector";
+import VersionHero from "./components/VersionHero";
 import LanguageToggle from "./components/LanguageToggle";
 import ReportPanel from "./components/ReportPanel";
 import {LangProvider,useLang} from "./components/LangContext";
@@ -170,6 +171,7 @@ function AppShell({lang,onToggleLang}:{lang:Lang;onToggleLang:()=>void}){
  const versionLabel=version==="All versions"?t("hero.allReleases"):version;
  const heroVersionLabel=lang==="fa"?faVersion:versionLabel;
  const nextTheme=t("theme."+(theme==="light"?"toDark":"toLight"));
+ const era=eraFor(version);
 
  const field=(label:string,key:string,opts?:string[])=><label className="field"><span>{label}</span>{opts?<select value={form[key]||opts[0]} onChange={e=>set(key,e.target.value)}>{opts.map(o=><option key={o}>{o}</option>)}</select>:<input value={form[key]||""} onChange={e=>set(key,e.target.value)}/>}</label>;
  const editor=()=>{
@@ -185,7 +187,7 @@ function AppShell({lang,onToggleLang}:{lang:Lang;onToggleLang:()=>void}){
  const markSeen=(p:Page)=>setSeenPages(prev=>prev.has(p)?prev:new Set(prev).add(p));
  if(!seenPages.has(page))markSeen(page);
 
- return <div className={`app theme-${theme}${lang==="fa"?" lang-fa":""}`} data-theme={theme}>
+ return <div className={`app theme-${theme}${lang==="fa"?" lang-fa":""}`} data-theme={theme} data-era={era.id} style={eraVars(era)}>
    <div className="ambient ambient-one"></div><div className="ambient ambient-two"></div>
    <header className="site-header">
      <div className="scroll-progress"><span style={{width:`${Math.min(100,Math.max(0,scrollProgress))}%`}}/></div>
@@ -218,12 +220,7 @@ function AppShell({lang,onToggleLang}:{lang:Lang;onToggleLang:()=>void}){
         <div className="hero-actions"><button className="primary-action" onClick={()=>switchPage("generator")}>{t("hero.cta1")} <Icon name="arrow"/></button><button className="secondary-action" onClick={openCommands}>{t("hero.cta2")}</button></div>
         <div className="hero-proof"><span><Icon name="check"/></span><div><b>{t("hero.proof1Title")}</b><small>{t("hero.proof1Sub")}</small></div><i></i><div><b>{t("hero.proof2Title")}</b><small>{heroVersionLabel} {t("hero.proof2Sub")}</small></div></div>
       </div>
-      <div className="hero-visual reveal in-view" style={{"--mx":`${mouse.x}%`,"--my":`${mouse.y}%`} as CSSProperties}>
-        <div className="hero-surface"></div><div className="hero-halo"></div><div className="hero-orbit orbit-one"></div><div className="hero-orbit orbit-two"></div><div className="hero-core"></div><div className="hero-core-shine"></div>
-        <div className="glass-command"><span>{t("hero.preview")}</span><b dir="ltr">{generated}</b><small>{version==="All versions"?t("hero.multiple"):version}</small></div>
-        <div className="glass-status"><span></span><div><b>{t("hero.ready")}</b><small>{t("hero.generated")}</small></div></div>
-        <div className="hero-grid"></div>
-      </div>
+      <VersionHero key={era.id} version={version} mouse={mouse} onPick={setVersion}/>
     </section>
 
     <section className="stats-strip section-wrap reveal">
