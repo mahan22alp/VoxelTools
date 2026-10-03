@@ -1,0 +1,21 @@
+/* Painted scenery behind the hero panel */
+.scenery{position:absolute;inset:0;z-index:0;width:100%;height:100%;pointer-events:none}
+.scenery .fa{fill:var(--accent)}
+.scenery .fb{fill:var(--accent-2)}
+.scenery .fd{fill:var(--deep)}
+.scenery .fg{fill:var(--glow)}
+.scenery .pulse{animation:scPulse 3.6s ease-in-out infinite}
+@keyframes scPulse{50%{opacity:.55}}
+.scenery .sc-drift{animation:scDrift 60s linear infinite}
+@keyframes scDrift{from{transform:translateX(-120px)}to{transform:translateX(520px)}}
+.scenery .aurora{opacity:.45;filter:blur(6px);animation:aurora 7s ease-in-out infinite alternate}
+@keyframes aurora{to{opacity:.8;transform:translateY(10px)}}
+.scenery .mist{animation:scMist 14s ease-in-out infinite alternate}
+@keyframes scMist{to{transform:translateX(50px)}}
+.scenery .lava{fill:#ff5a1f;animation:scPulse 2.4s ease-in-out infinite}
+.scenery .sc-sway{transform-box:fill-box;transform-origin:50% 100%;animation:scSway 4s ease-in-out infinite alternate}
+@keyframes scSway{from{transform:rotate(-3deg)}to{transform:rotate(3deg)}}
+
+/* Keep text readable on the dusk mountains */
+.era-stage[data-motif=depth] .depth-y{color:#fff}
+.era-stage[data-motif=depth] .depth-y small{color:#d8dcf0}

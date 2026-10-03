@@ -5,6 +5,7 @@ import {eraFor,groups} from '../data/eras';
 import type {Fx} from '../data/eras';
 import type {Lang} from '../i18n';
 import {useLang} from './LangContext';
+import Scenery from './Scenery';
 
 type Props={version:string;mouse:{x:number;y:number};onPick:(version:string)=>void};
 type Bi={en:string;fa:string};
@@ -336,6 +337,7 @@ export default function VersionHero({version,mouse,onPick}:Props){
   const {lang}=useLang();
   return <div className='hero-visual era-stage reveal in-view' data-motif={era.motif} style={{'--mx':`${mouse.x}%`,'--my':`${mouse.y}%`} as CSSProperties}>
     <div className='era-scene'>
+      <Scenery motif={era.motif}/>
       <Particles kind={era.fx} n={era.fxCount} seed={era.seed}/>
       <div className='era-badge'><i/><b>{era.name[lang]}</b><small dir='ltr'>{era.range}</small></div>
       <Scene motif={era.motif} lang={lang} onPick={onPick}/>
